@@ -10,7 +10,7 @@ from cv_source import load_cv
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_PROFILE = ROOT / "profiles" / "john-doe"
+DEFAULT_PROFILE = ROOT / "profiles" / "local"
 DEFAULT_THEME_DIR = ROOT / "themes"
 HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 SECTION_TYPES = {
@@ -236,6 +236,17 @@ def load_profile(profile_dir: Path = DEFAULT_PROFILE) -> dict[str, Any]:
     profile_dir = profile_dir.resolve()
     cv_path = profile_dir / "CV.md"
     resume_path = profile_dir / "resume.json"
+    writing_style_path = profile_dir / "Writing-Style.md"
+    missing = [
+        path.name
+        for path in (cv_path, writing_style_path, resume_path)
+        if not path.is_file()
+    ]
+    if missing:
+        raise ProfileConfigError(
+            f"Profile {profile_dir} is incomplete; missing {', '.join(missing)}. "
+            f"Run './jobs-tailor init {profile_dir}' to create a private profile."
+        )
     config = validate_resume_config(_read_object(resume_path), resume_path)
     theme_path = DEFAULT_THEME_DIR / f"{config['theme']}.json"
     theme = validate_theme(_read_object(theme_path), theme_path, profile_dir)
@@ -252,7 +263,7 @@ def load_profile(profile_dir: Path = DEFAULT_PROFILE) -> dict[str, Any]:
     return {
         "root": profile_dir,
         "cvPath": cv_path,
-        "writingStylePath": profile_dir / "Writing-Style.md",
+        "writingStylePath": writing_style_path,
         "resumePath": resume_path,
         "themePath": theme_path,
         "cv": cv,

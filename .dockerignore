@@ -1,5 +1,9 @@
 .git
 output
 knowledge-base
+profiles/local
+profiles/private
+.env
+.env.*
 __pycache__
 *.pyc

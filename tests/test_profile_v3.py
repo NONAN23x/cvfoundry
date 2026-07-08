@@ -42,6 +42,11 @@ class ProfileV3Tests(unittest.TestCase):
             {"open-source", "publications"},
         )
 
+    def test_incomplete_private_profile_has_actionable_error(self):
+        with tempfile.TemporaryDirectory() as name:
+            with self.assertRaisesRegex(ProfileConfigError, "jobs-tailor init"):
+                load_profile(Path(name) / "local")
+
     def test_prepare_writes_compact_decision_report(self):
         with tempfile.TemporaryDirectory() as name:
             root = Path(name)
