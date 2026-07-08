@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cvfoundry"
+version = "3.0.0"
+description = "Profile-driven, provenance-safe resume tailoring and deterministic PDF generation"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+
+[tool.setuptools]
+packages = []

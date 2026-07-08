@@ -1,0 +1,30 @@
+{
+  "applicationFollowUpSubjectTemplate": "Follow-up on <role> application - <name>",
+  "directOutreachSubjectTemplate": "Interest in <role> - <name>",
+  "maxBodyParagraphs": 2,
+  "maxBodySentences": 6,
+  "requiredBodyElements": [
+    "greeting",
+    "role-context",
+    "two-or-three-relevant-strengths",
+    "clear-call-to-action",
+    "polite-close",
+    "canonical-signature"
+  ],
+  "defaultCallToAction": "I would welcome the chance to discuss how I can contribute to your team.",
+  "defaultUnknownRecipientGreeting": "Hiring Team,",
+  "forbidClaimsWithoutWorkflowEvidence": [
+    "application already submitted",
+    "prior conversation",
+    "referral",
+    "availability window",
+    "attached files"
+  ],
+  "requiredSignatureFields": [
+    "name",
+    "email",
+    "phone",
+    "linkedin",
+    "github"
+  ]
+}

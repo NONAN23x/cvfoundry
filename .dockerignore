@@ -1,0 +1,5 @@
+.git
+output
+knowledge-base
+__pycache__
+*.pyc

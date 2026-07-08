@@ -1,0 +1,14 @@
+{
+  "rust-backend-job.md": [
+    "project-async-api",
+    "project-log-analyzer"
+  ],
+  "embedded-rust-job.md": [
+    "project-embedded-sensor",
+    "project-kv-store"
+  ],
+  "rust-systems-job.md": [
+    "project-kv-store",
+    "project-embedded-sensor"
+  ]
+}

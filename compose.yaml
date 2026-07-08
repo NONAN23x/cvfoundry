@@ -1,0 +1,6 @@
+services:
+  jobs-tailor:
+    build: .
+    working_dir: /workspace
+    volumes:
+      - .:/workspace

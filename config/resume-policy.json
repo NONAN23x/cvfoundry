@@ -1,0 +1,21 @@
+{
+  "requiredExperienceCount": 3,
+  "requiredProjectCount": 2,
+  "experienceBulletsPerEntry": 4,
+  "projectBulletsPerEntry": 3,
+  "requiredCertificationCount": 3,
+  "requiredAchievementCount": 2,
+  "requiredTechnicalSkillCategoryCount": 4,
+  "technicalSkillSlotsPerCategory": 4,
+  "maximumTechnicalSkillReplacementsPerCategory": 2,
+  "maximumBulletLines": 1,
+  "requiredContactLines": 1,
+  "maximumSummaryLines": 3,
+  "maximumSkillRowLines": 1,
+  "minimumBottomWhitespaceMm": 10,
+  "maximumBottomWhitespaceMm": 18,
+  "requiredAchievementSourceIds": [
+    "achievement-rust-contributor",
+    "achievement-systems-talk"
+  ]
+}

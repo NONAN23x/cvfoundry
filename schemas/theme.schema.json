@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jobs-tailoring.local/schemas/theme.schema.json",
+  "title": "Jobs Tailoring Theme",
+  "type": "object",
+  "required": ["schemaVersion", "font", "colors", "typography", "geometry", "spacing"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "font": {
+      "type": "object",
+      "required": ["family", "files"],
+      "properties": {
+        "family": {"type": "string", "minLength": 1},
+        "files": {
+          "type": "object",
+          "required": ["regular", "bold", "italic", "boldItalic"],
+          "additionalProperties": {"type": "string"}
+        }
+      }
+    },
+    "colors": {
+      "type": "object",
+      "required": ["accent", "ink", "background"],
+      "additionalProperties": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"}
+    },
+    "typography": {"type": "object"},
+    "geometry": {"type": "object"},
+    "spacing": {"type": "object"}
+  }
+}

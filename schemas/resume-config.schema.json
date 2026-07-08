@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jobs-tailoring.local/schemas/resume-config.schema.json",
+  "title": "Jobs Tailoring Resume Configuration",
+  "type": "object",
+  "required": ["schemaVersion", "theme", "document", "header", "sections"],
+  "properties": {
+    "schemaVersion": {"const": 3},
+    "theme": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "document": {
+      "type": "object",
+      "required": ["pageSize", "targetPages", "maxPages"],
+      "properties": {
+        "pageSize": {"enum": ["A4", "LETTER"]},
+        "targetPages": {"enum": [1, 2]},
+        "maxPages": {"enum": [1, 2]}
+      },
+      "additionalProperties": false
+    },
+    "header": {
+      "type": "object",
+      "required": ["contactFields"],
+      "properties": {"contactFields": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}}
+    },
+    "layout": {
+      "type": "object",
+      "properties": {
+        "maximumSummaryLines": {"type": "integer", "minimum": 1},
+        "maximumBulletLines": {"type": "integer", "minimum": 1},
+        "maximumSkillRowLines": {"type": "integer", "minimum": 1},
+        "requiredContactLines": {"type": "integer", "minimum": 1},
+        "minimumBottomWhitespaceMm": {"type": "number", "minimum": 0},
+        "maximumBottomWhitespaceMm": {"type": "number", "minimum": 0},
+        "maximumIntermediatePageWhitespaceMm": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["sourceId", "type", "selection", "rewrite"],
+        "properties": {
+          "sourceId": {"type": "string"},
+          "type": {"enum": ["summary", "timeline", "portfolio", "publications", "credentials", "bullets", "education", "skills"]},
+          "priority": {"type": "integer", "minimum": 0, "maximum": 100},
+          "rewrite": {"enum": ["none", "source-bounded"]},
+          "selection": {
+            "type": "object",
+            "required": ["mode"],
+            "properties": {
+              "mode": {"enum": ["all", "ranked", "explicit"]},
+              "entries": {"$ref": "#/$defs/budget"},
+              "bulletsPerEntry": {"$ref": "#/$defs/budget"},
+              "itemsPerEntry": {"$ref": "#/$defs/budget"},
+              "requiredSourceIds": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+              "excludedSourceIds": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+              "maximumReplacementsPerCategory": {"type": "integer", "minimum": 0}
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "$defs": {
+    "budget": {
+      "type": "object",
+      "required": ["min", "preferred", "max"],
+      "properties": {
+        "min": {"type": "integer", "minimum": 0},
+        "preferred": {"type": "integer", "minimum": 0},
+        "max": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

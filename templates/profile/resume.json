@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 3,
+  "theme": "classic-serif",
+  "document": {"pageSize": "A4", "targetPages": 1, "maxPages": 1},
+  "header": {"contactFields": ["phone", "email", "linkedin", "github", "website"]},
+  "layout": {"maximumSummaryLines": 3, "maximumBulletLines": 1, "maximumSkillRowLines": 1, "requiredContactLines": 1, "minimumBottomWhitespaceMm": 10, "maximumBottomWhitespaceMm": 18, "maximumIntermediatePageWhitespaceMm": 25},
+  "sections": [
+    {"sourceId": "summary", "type": "summary", "priority": 100, "rewrite": "source-bounded", "selection": {"mode": "all"}},
+    {"sourceId": "experience", "type": "timeline", "priority": 100, "rewrite": "source-bounded", "selection": {"mode": "all", "entries": {"min": 1, "preferred": 1, "max": 4}, "bulletsPerEntry": {"min": 1, "preferred": 3, "max": 6}}},
+    {"sourceId": "projects", "type": "portfolio", "priority": 90, "rewrite": "source-bounded", "selection": {"mode": "ranked", "entries": {"min": 1, "preferred": 2, "max": 5}, "bulletsPerEntry": {"min": 1, "preferred": 3, "max": 5}}},
+    {"sourceId": "open-source", "type": "portfolio", "priority": 75, "rewrite": "source-bounded", "selection": {"mode": "ranked", "entries": {"min": 0, "preferred": 1, "max": 4}, "bulletsPerEntry": {"min": 1, "preferred": 2, "max": 4}}},
+    {"sourceId": "publications", "type": "publications", "priority": 70, "rewrite": "none", "selection": {"mode": "ranked", "entries": {"min": 0, "preferred": 1, "max": 5}}},
+    {"sourceId": "certifications", "type": "credentials", "priority": 65, "rewrite": "none", "selection": {"mode": "ranked", "entries": {"min": 0, "preferred": 1, "max": 5}}},
+    {"sourceId": "achievements", "type": "bullets", "priority": 55, "rewrite": "none", "selection": {"mode": "ranked", "entries": {"min": 0, "preferred": 1, "max": 4}}},
+    {"sourceId": "education", "type": "education", "priority": 60, "rewrite": "none", "selection": {"mode": "all", "entries": {"min": 1, "preferred": 1, "max": 3}}},
+    {"sourceId": "technical-skills", "type": "skills", "priority": 80, "rewrite": "none", "selection": {"mode": "all", "entries": {"min": 1, "preferred": 4, "max": 8}, "itemsPerEntry": {"min": 3, "preferred": 5, "max": 10}, "maximumReplacementsPerCategory": 2}}
+  ]
+}
