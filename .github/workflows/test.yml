@@ -8,18 +8,9 @@ permissions:
   contents: read
 
 jobs:
-  unit:
+  test:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: python -m unittest discover -s tests -v
-
-  renderer:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: docker build -t cvfoundry:test .
-      - run: docker run --rm --entrypoint python3 -e RUN_LIBREOFFICE_INTEGRATION=1 cvfoundry:test -m unittest tests.test_writer_integration -v
+      - run: docker run --rm --entrypoint python3 -e RUN_LIBREOFFICE_INTEGRATION=1 cvfoundry:test -m unittest discover -s tests -v
