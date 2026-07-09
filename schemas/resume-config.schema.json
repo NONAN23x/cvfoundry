@@ -1,37 +1,36 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://jobs-tailoring.local/schemas/resume-config.schema.json",
-  "title": "Jobs Tailoring Resume Configuration",
+  "$id": "https://cvfoundry.local/schemas/resume-rules-toml-v4.schema.json",
+  "title": "CvFoundry resume.toml parsed rules",
   "type": "object",
-  "required": ["schemaVersion", "theme", "document", "header", "sections"],
+  "required": ["version", "theme", "document", "sections"],
   "properties": {
-    "schemaVersion": {"const": 3},
+    "version": {"const": 4},
     "theme": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
     "document": {
       "type": "object",
-      "required": ["pageSize", "targetPages", "maxPages"],
+      "required": ["paper", "target_pages", "max_pages"],
       "properties": {
-        "pageSize": {"enum": ["A4", "LETTER"]},
-        "targetPages": {"enum": [1, 2]},
-        "maxPages": {"enum": [1, 2]}
+        "paper": {"enum": ["A4", "LETTER", "a4", "letter"]},
+        "target_pages": {"enum": [1, 2]},
+        "max_pages": {"enum": [1, 2]}
       },
       "additionalProperties": false
     },
     "header": {
       "type": "object",
-      "required": ["contactFields"],
-      "properties": {"contactFields": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}}
+      "properties": {
+        "contact": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      },
+      "additionalProperties": false
     },
-    "layout": {
+    "quality": {
       "type": "object",
       "properties": {
-        "maximumSummaryLines": {"type": "integer", "minimum": 1},
-        "maximumBulletLines": {"type": "integer", "minimum": 1},
-        "maximumSkillRowLines": {"type": "integer", "minimum": 1},
-        "requiredContactLines": {"type": "integer", "minimum": 1},
-        "minimumBottomWhitespaceMm": {"type": "number", "minimum": 0},
-        "maximumBottomWhitespaceMm": {"type": "number", "minimum": 0},
-        "maximumIntermediatePageWhitespaceMm": {"type": "number", "minimum": 0}
+        "contact_lines": {"type": "integer", "minimum": 1},
+        "bottom_whitespace_min_mm": {"type": "number", "minimum": 0},
+        "bottom_whitespace_max_mm": {"type": "number", "minimum": 0},
+        "intermediate_page_whitespace_max_mm": {"type": "number", "minimum": 0}
       },
       "additionalProperties": false
     },
@@ -40,39 +39,46 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["sourceId", "type", "selection", "rewrite"],
+        "required": ["id", "kind"],
         "properties": {
-          "sourceId": {"type": "string"},
-          "type": {"enum": ["summary", "timeline", "portfolio", "publications", "credentials", "bullets", "education", "skills"]},
+          "id": {"type": "string", "minLength": 1},
+          "kind": {
+            "enum": [
+              "summary",
+              "timeline",
+              "portfolio",
+              "publications",
+              "credentials",
+              "bullets",
+              "education",
+              "skills"
+            ]
+          },
           "priority": {"type": "integer", "minimum": 0, "maximum": 100},
+          "mode": {"enum": ["all", "ranked", "explicit", "ordered"]},
           "rewrite": {"enum": ["none", "source-bounded"]},
-          "selection": {
-            "type": "object",
-            "required": ["mode"],
-            "properties": {
-              "mode": {"enum": ["all", "ranked", "explicit"]},
-              "entries": {"$ref": "#/$defs/budget"},
-              "bulletsPerEntry": {"$ref": "#/$defs/budget"},
-              "itemsPerEntry": {"$ref": "#/$defs/budget"},
-              "requiredSourceIds": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-              "excludedSourceIds": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-              "maximumReplacementsPerCategory": {"type": "integer", "minimum": 0}
-            },
-            "additionalProperties": false
-          }
+          "entries": {"$ref": "#/$defs/pageBudget"},
+          "bullets": {"$ref": "#/$defs/pageBudget"},
+          "items_per_category": {"$ref": "#/$defs/pageBudget"},
+          "replacement_limit": {"type": "integer", "minimum": 0},
+          "lines": {"type": "integer", "minimum": 1},
+          "bullet_lines": {"type": "integer", "minimum": 1},
+          "skill_row_lines": {"type": "integer", "minimum": 1},
+          "required": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "excluded": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
         },
         "additionalProperties": false
       }
     }
   },
   "$defs": {
-    "budget": {
+    "pageBudget": {
       "type": "object",
-      "required": ["min", "preferred", "max"],
+      "required": ["one_page", "two_page"],
       "properties": {
-        "min": {"type": "integer", "minimum": 0},
-        "preferred": {"type": "integer", "minimum": 0},
-        "max": {"type": "integer", "minimum": 0}
+        "one_page": {"type": "integer", "minimum": 0},
+        "two_page": {"type": "integer", "minimum": 0},
+        "minimum": {"type": "integer", "minimum": 0}
       },
       "additionalProperties": false
     }

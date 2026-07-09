@@ -46,6 +46,23 @@ def _payload_sections(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return index
 
 
+def _ordered_source_ids(
+    available_ids: list[str], count: int, required_ids: list[str]
+) -> list[str]:
+    selected: list[str] = []
+    for item_id in available_ids:
+        if item_id in required_ids or len(selected) < count:
+            selected.append(item_id)
+    while len(selected) > count:
+        for item_id in reversed(selected):
+            if item_id not in required_ids:
+                selected.remove(item_id)
+                break
+        else:
+            break
+    return [item_id for item_id in available_ids if item_id in set(selected)]
+
+
 def _selected_requests(
     section_policy: dict[str, Any],
     canonical_items: list[dict[str, Any]],
@@ -71,7 +88,15 @@ def _selected_requests(
     mode = section_policy["selectionMode"]
     count = section_policy["effectiveEntryCount"]
     required = section_policy["requiredSourceIds"]
-    if mode == "all":
+    if mode == "ordered":
+        if requested:
+            raise ValueError(
+                f"Section {source_id!r} uses mode 'ordered' and must not appear in the payload."
+            )
+        selected_ids = _ordered_source_ids(available_ids, count, required)
+        if len(selected_ids) != count:
+            raise ValueError(f"Section {source_id!r} requires exactly {count} selected item(s).")
+    elif mode == "all":
         selected_ids = list(available_ids)
         if requested and set(request_order) != set(selected_ids):
             raise ValueError(f"Section {source_id!r} uses mode 'all' and must include every available item.")

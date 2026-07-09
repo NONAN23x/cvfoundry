@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import fcntl
 import hashlib
 import html
 import json
@@ -16,11 +15,23 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-import uno
-from com.sun.star.awt.FontSlant import ITALIC, NONE
-from com.sun.star.beans import PropertyValue
-from com.sun.star.style.ParagraphAdjust import CENTER, LEFT
-from com.sun.star.style.TabAlign import RIGHT
+try:
+    import uno
+    from com.sun.star.awt.FontSlant import ITALIC, NONE
+    from com.sun.star.beans import PropertyValue
+    from com.sun.star.style.ParagraphAdjust import CENTER, LEFT
+    from com.sun.star.style.TabAlign import RIGHT
+except ImportError:
+    uno = None
+    ITALIC = 2
+    NONE = 0
+    CENTER = 3
+    LEFT = 0
+    RIGHT = 2
+
+    class PropertyValue:  # type: ignore[no-redef]
+        Name: str
+        Value: Any
 
 from artifact_names import final_pdf_filename
 from cv_source import load_cv
@@ -60,6 +71,17 @@ class ContentValidationError(GenerateResumeError):
 class LibreOfficeRuntimeError(GenerateResumeError):
     def __init__(self, issues: list[str]) -> None:
         super().__init__("libreoffice-runtime", issues, exit_code=3)
+
+
+def require_uno() -> Any:
+    if uno is None:
+        raise LibreOfficeRuntimeError(
+            [
+                "LibreOffice Writer is unavailable: UNO Python bindings are unavailable in this Python environment. "
+                "Use Docker for rendering or run with a Python that provides python3-uno."
+            ]
+        )
+    return uno
 
 
 def property_value(name: str, value: Any) -> PropertyValue:
@@ -308,6 +330,7 @@ class WriterSession:
         self.font_dirs = font_dirs or [FONT_DIR]
 
     def __enter__(self) -> "WriterSession":
+        uno_module = require_uno()
         executable = shutil.which("libreoffice") or shutil.which("soffice")
         if not executable:
             raise LibreOfficeRuntimeError(["LibreOffice Writer is unavailable."])
@@ -343,7 +366,7 @@ class WriterSession:
             text=True,
             env=self.environment,
         )
-        local_context = uno.getComponentContext()
+        local_context = uno_module.getComponentContext()
         resolver = local_context.ServiceManager.createInstanceWithContext(
             "com.sun.star.bridge.UnoUrlResolver", local_context
         )
@@ -396,7 +419,8 @@ def _set_properties(target: Any, **properties: Any) -> None:
 
 
 def _tab_stop(position: int) -> Any:
-    stop = uno.createUnoStruct("com.sun.star.style.TabStop")
+    uno_module = require_uno()
+    stop = uno_module.createUnoStruct("com.sun.star.style.TabStop")
     stop.Position = position
     stop.Alignment = RIGHT
     stop.DecimalChar = "."
@@ -446,6 +470,32 @@ def export_pdf_with_libreoffice(
         )
     if generated_path != pdf_path:
         os.replace(generated_path, pdf_path)
+
+
+class GenerationLock:
+    def __init__(self, output_dir: Path) -> None:
+        self.path = output_dir / ".generate.lock"
+        self.fd: int | None = None
+
+    def __enter__(self) -> "GenerationLock":
+        if os.environ.get(PIPELINE_LOCK_ENV) == "1":
+            return self
+        try:
+            self.fd = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError as error:
+            raise LibreOfficeRuntimeError(
+                [f"Another resume generation is active in {self.path.parent}."]
+            ) from error
+        os.write(self.fd, f"pid={os.getpid()} started={time.time()}\n".encode("utf8"))
+        return self
+
+    def __exit__(self, exc_type, exc, traceback) -> None:
+        if self.fd is not None:
+            os.close(self.fd)
+            try:
+                self.path.unlink()
+            except FileNotFoundError:
+                pass
 
 
 def build_writer_document(
@@ -528,10 +578,11 @@ def build_writer_document(
                 prop.Value = bullet_indent
             elif prop.Name == "FirstLineIndent":
                 prop.Value = -bullet_gap
-        uno.invoke(
+        uno_module = require_uno()
+        uno_module.invoke(
             numbering_rules,
             "replaceByIndex",
-            (0, uno.Any("[]com.sun.star.beans.PropertyValue", tuple(level))),
+            (0, uno_module.Any("[]com.sun.star.beans.PropertyValue", tuple(level))),
         )
         list_style.NumberingRules = numbering_rules
 
@@ -564,7 +615,7 @@ def build_writer_document(
                 ParaLeftMargin=left_margin,
                 ParaKeepTogether=keep_with_next,
                 ParaSplit=allow_split,
-                ParaLineSpacing=uno.createUnoStruct("com.sun.star.style.LineSpacing"),
+                ParaLineSpacing=require_uno().createUnoStruct("com.sun.star.style.LineSpacing"),
             )
             cursor.ParaLineSpacing.Mode = 0
             cursor.ParaLineSpacing.Height = 100
@@ -575,7 +626,7 @@ def build_writer_document(
             else:
                 cursor.NumberingStyleName = ""
             if bottom_border:
-                border = uno.createUnoStruct("com.sun.star.table.BorderLine2")
+                border = require_uno().createUnoStruct("com.sun.star.table.BorderLine2")
                 border.Color = accent
                 border.OuterLineWidth = 35
                 border.LineWidth = 35
@@ -869,16 +920,7 @@ def generate(
                 previous_pdf_filename = candidate
         except (OSError, ValueError, json.JSONDecodeError):
             pass
-    lock_path = output_dir / ".generate.lock"
-    with lock_path.open("w", encoding="utf8") as lock:
-        if os.environ.get(PIPELINE_LOCK_ENV) != "1":
-            try:
-                fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError as error:
-                raise LibreOfficeRuntimeError(
-                    [f"Another resume generation is active in {output_dir}."]
-                ) from error
-
+    with GenerationLock(output_dir):
         try:
             policy = policy or load_json(POLICY_PATH)
             cv = load_cv(cv_path)

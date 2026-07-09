@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import argparse
-import os
 import shutil
 import subprocess
 import sys
@@ -37,6 +36,8 @@ def main() -> int:
         "ok": sys.version_info >= (3, 11),
         "detail": sys.version.split()[0],
     }
+    ok, detail = command_version("uv", "--version")
+    checks["uv"] = {"ok": ok, "detail": detail}
     try:
         import uno  # noqa: F401
 
@@ -79,11 +80,6 @@ def main() -> int:
     except (OSError, ProfileConfigError, ValueError) as error:
         checks["profile"] = {"ok": False, "detail": str(error)}
 
-    generator = ROOT / "assets" / "generate-resume.sh"
-    checks["generatorExecutable"] = {
-        "ok": generator.exists() and os.access(generator, os.X_OK),
-        "detail": str(generator),
-    }
     try:
         output_dir = ROOT / "output"
         output_dir.mkdir(parents=True, exist_ok=True)

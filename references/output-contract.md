@@ -17,7 +17,7 @@ Required files:
 - `<first-name>-<job-title>.pdf`, derived deterministically from the locked CV name and
   tailored headline (for example, `John-Rust-Software-Developer.pdf`)
 - `layout-validation.json`
-- executable `generate-resume.sh` wrapper that delegates to `assets/generate-resume.sh`
+- executable `rerun.py` helper that delegates to `jobs-tailor rerun`
 - `tailoring-notes.md`
 
 Conditionally required when email drafting is requested:
@@ -32,4 +32,4 @@ reading order, embedded fonts, PDF/UA tags, Writer/LibreOffice metadata, provena
 current source hashes. `effective-policy.json` is the inspectable record of resolved
 section, entry, and per-source bullet counts.
 
-`tailoring-payload.json` is the only agent-authored resume input. `tailored-resume.json` and all rendered files are deterministic derivatives. Install the wrapper with `python3 scripts/install_output_runner.py <output-dir>`, edit the payload, then rerun `generate-resume.sh`; do not hand-edit assembled JSON, HTML, ODT, or PDF as alternate sources.
+`tailoring-payload.json` is the only agent-authored resume input. `tailored-resume.json` and all rendered files are deterministic derivatives. Edit the payload, then run `uv run jobs-tailor rerun --out <output-dir>` or execute the generated `rerun.py`; do not hand-edit assembled JSON, HTML, ODT, or PDF as alternate sources.

@@ -44,7 +44,7 @@ REQUIRED_FILES = [
     "tailored-resume.html",
     "tailored-resume.odt",
     "layout-validation.json",
-    "generate-resume.sh",
+    "rerun.py",
     "tailoring-notes.md",
 ]
 PLACEHOLDER_RE = re.compile(r"TODO|FIXME|\{\{.*?\}\}|lorem ipsum", re.IGNORECASE)
@@ -143,9 +143,9 @@ def analyze_output_dir(
     for required_file in required_files:
         if not (output_dir / required_file).exists():
             issues.append(f"Missing required file: {required_file}")
-    generator = output_dir / "generate-resume.sh"
+    generator = output_dir / "rerun.py"
     if generator.exists() and not os.access(generator, os.X_OK):
-        issues.append("generate-resume.sh is not executable.")
+        issues.append("rerun.py is not executable.")
 
     canonical_cv_path = cv_path or DEFAULT_CV_PATH
     try:

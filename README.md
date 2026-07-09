@@ -1,62 +1,57 @@
 # CvFoundry
 
-CvFoundry turns a source CV and a small policy file into provenance-checked HTML,
-editable ODT, and tagged PDF/UA resumes.
+CvFoundry automates resume tailoring without turning your CV into mush.
+You keep one factual `CV.md`; CvFoundry selects source-backed content for a job,
+renders HTML/ODT/PDF, and writes evidence files showing what rules were applied.
 
-## Start here
-
-Create a private local profile:
-
-```bash
-./jobs-tailor init profiles/local
-```
-
-Then:
-
-1. Write your own `profiles/local/CV.md`, using
-   [`profiles/john-doe/CV.md`](profiles/john-doe/CV.md) as the format reference.
-2. Edit `profiles/local/resume.json` to choose pages, sections, entries, and bullets.
-3. Adjust `profiles/local/Writing-Style.md` if desired.
-4. Validate the setup:
+## Quick start
 
 ```bash
-./jobs-tailor doctor
-./jobs-tailor validate
+uv sync
+uv run jobs-tailor init profiles/local
+uv run jobs-tailor first-run
 ```
 
-`profiles/local/`, `profiles/private/`, `knowledge-base/`, `.env*`, and generated
-`output/` files are excluded from Git and the Docker build context. Keep personal CVs
-and policy overrides there; only the fictional John Doe example is published.
+Then edit your private profile:
 
-## Build a resume
+1. Write `profiles/local/CV.md` using [`profiles/john-doe/CV.md`](profiles/john-doe/CV.md) as the example format.
+2. Edit `profiles/local/resume.toml` to choose the profile rules for pages, sections, entries, and bullets.
+3. Optionally adjust `profiles/local/Writing-Style.md`.
+
+Private profiles and generated outputs are ignored by Git. The published example profile is fictional.
+
+## Tailor a resume
 
 ```bash
-./jobs-tailor prepare --job job-description.md --out output/run
-# Create output/run/tailoring-payload.json from tailoring-brief.json.
-./jobs-tailor build --payload output/run/tailoring-payload.json --out output/run
-./jobs-tailor check --out output/run --reinspect
+uv run jobs-tailor first-run
+uv run jobs-tailor doctor
+uv run jobs-tailor validate
+uv run jobs-tailor prepare --job job-description.md --out output/run
+# Create output/run/tailoring-payload.json from output/run/tailoring-brief.json.
+uv run jobs-tailor build --payload output/run/tailoring-payload.json --out output/run
+uv run jobs-tailor check --out output/run --reinspect
 ```
 
-The tracked default policy is [`templates/profile/resume.json`](templates/profile/resume.json).
-In each profile, `resume.json` is authoritative:
+Helpful inspection commands:
 
-- `document.targetPages` and `document.maxPages` control the one- or two-page limit.
-- `sections` controls inclusion and order.
-- `selection.entries` controls section entry counts.
-- `selection.bulletsPerEntry` controls bullets per experience or project.
-- `layout.maximum*Lines` controls rendered line limits.
-- `theme` selects fonts, colors, margins, and spacing from `themes/`.
+```bash
+uv run jobs-tailor explain-rules
+uv run jobs-tailor status --out output/run
+uv run jobs-tailor inspect-run --out output/run
+uv run jobs-tailor rerun --out output/run
+```
 
-Resolved rules are written to `effective-policy.json`; final layout evidence is written
-to `decision-report.json` and `layout-validation.json`.
+## Rendering
 
-For profile syntax, Docker usage, and the complete workflow, see
-[`docs/ONBOARDING.md`](docs/ONBOARDING.md).
+Most commands are normal cross-platform Python. LibreOffice/PDF rendering is the non-negotiable environment-sensitive part; use Docker when native LibreOffice/UNO is not healthy, especially on Windows.
 
-## Requirements
+```bash
+docker build -t cvfoundry .
+docker run --rm -v "$PWD:/workspace" cvfoundry doctor
+```
 
-Python 3.11+, LibreOffice Writer with UNO bindings, Poppler utilities, and Fontconfig.
-The pinned Docker build provides the supported renderer environment.
+The tracked default rules live in [`templates/profile/resume.toml`](templates/profile/resume.toml).
+Detailed setup and rule examples are in [`docs/ONBOARDING.md`](docs/ONBOARDING.md).
 
 ## License
 

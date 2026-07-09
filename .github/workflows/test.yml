@@ -13,4 +13,4 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: docker build -t cvfoundry:test .
-      - run: docker run --rm --entrypoint python3 -e RUN_LIBREOFFICE_INTEGRATION=1 cvfoundry:test -m unittest discover -s tests -v
+      - run: docker run --rm --entrypoint uv -e RUN_LIBREOFFICE_INTEGRATION=1 cvfoundry:test run python -m unittest discover -s tests -v

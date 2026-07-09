@@ -4,6 +4,7 @@ import argparse
 import json
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -23,7 +24,7 @@ from profile_config import (  # noqa: E402
     resolve_effective_policy,
 )
 from generate_resume import render_html  # noqa: E402
-from jobs_tailor_cli import command_prepare  # noqa: E402
+from jobs_tailor_cli import command_first_run, command_init, command_prepare  # noqa: E402
 from test_assemble_resume import payload_from_cv  # noqa: E402
 
 
@@ -46,6 +47,14 @@ class ProfileV3Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as name:
             with self.assertRaisesRegex(ProfileConfigError, "jobs-tailor init"):
                 load_profile(Path(name) / "local")
+
+    def test_first_run_rejects_scaffold_profile(self):
+        with tempfile.TemporaryDirectory() as name:
+            profile_dir = Path(name) / "profile"
+            command_init(argparse.Namespace(profile=profile_dir))
+            result = command_first_run(argparse.Namespace(profile=profile_dir))
+            self.assertFalse(result["ok"])
+            self.assertTrue(any("scaffold" in issue for issue in result["issues"]))
 
     def test_prepare_writes_compact_decision_report(self):
         with tempfile.TemporaryDirectory() as name:
@@ -73,10 +82,16 @@ class ProfileV3Tests(unittest.TestCase):
         self.assertEqual(extras["publications"]["items"][0]["id"], "publication-example")
 
     def test_rejects_invalid_page_target(self):
-        config = json.loads((ROOT / "profiles" / "john-doe" / "resume.json").read_text())
-        config["document"]["targetPages"] = 3
+        config = tomllib.loads((ROOT / "profiles" / "john-doe" / "resume.toml").read_text())
+        config["document"]["target_pages"] = 3
         with self.assertRaisesRegex(ProfileConfigError, "must be 1 or 2"):
-            validate_resume_config(config, Path("resume.json"))
+            validate_resume_config(config, Path("resume.toml"))
+
+    def test_rejects_bullet_rules_on_summary(self):
+        config = tomllib.loads((ROOT / "profiles" / "john-doe" / "resume.toml").read_text())
+        config["sections"][0]["bullets"] = {"one_page": 1, "two_page": 1}
+        with self.assertRaisesRegex(ProfileConfigError, "must not configure bullets"):
+            validate_resume_config(config, Path("resume.toml"))
 
     def test_rejects_remote_fonts(self):
         with tempfile.TemporaryDirectory() as name:
@@ -96,17 +111,13 @@ class ProfileV3Tests(unittest.TestCase):
             validate_theme(theme, theme_path, ROOT)
 
     def test_rejects_invalid_skill_item_budget(self):
-        config = json.loads((ROOT / "profiles" / "john-doe" / "resume.json").read_text())
+        config = tomllib.loads((ROOT / "profiles" / "john-doe" / "resume.toml").read_text())
         skills = next(
-            item for item in config["sections"] if item["sourceId"] == "technical-skills"
+            item for item in config["sections"] if item["id"] == "technical-skills"
         )
-        skills["selection"]["itemsPerEntry"] = {
-            "min": 5,
-            "preferred": 4,
-            "max": 8,
-        }
-        with self.assertRaisesRegex(ProfileConfigError, "min <= preferred <= max"):
-            validate_resume_config(config, Path("resume.json"))
+        skills["items_per_category"] = {"one_page": 4, "two_page": 8, "minimum": 5}
+        with self.assertRaisesRegex(ProfileConfigError, "minimum <= one_page <= two_page"):
+            validate_resume_config(config, Path("resume.toml"))
 
     def test_rejects_unknown_excluded_source_id(self):
         profile = load_profile(ROOT / "profiles" / "john-doe")
@@ -165,7 +176,7 @@ class ProfileV3Tests(unittest.TestCase):
         self.assertNotIn('data-resume-section="certifications"', html)
         self.assertNotIn('data-resume-section="achievements"', html)
 
-    def test_ranked_certification_budget_is_enforced(self):
+    def test_ordered_certification_budget_is_cv_ordered_and_payload_locked(self):
         profile = load_profile(ROOT / "profiles" / "john-doe")
         certification_config = next(
             item for item in profile["config"]["sections"] if item["sourceId"] == "certifications"
@@ -173,19 +184,18 @@ class ProfileV3Tests(unittest.TestCase):
         certification_config["selection"]["entries"] = {"min": 1, "preferred": 2, "max": 3}
         policy = resolve_effective_policy(profile)
         payload = from_legacy_payload(payload_from_cv(profile["cv"]))
-        payload["sections"].append(
-            {
-                "sourceId": "certifications",
-                "items": [
-                    {"sourceId": item["id"]}
-                    for item in profile["cv"]["certifications"][:2]
-                ],
-            }
-        )
         tailored = assemble_profile_resume(
             payload, profile["cv"], policy, profile["sections"]
         )
-        self.assertEqual(len(tailored["certifications"]), 2)
+        self.assertEqual(
+            [item["sourceId"] for item in tailored["certifications"]],
+            [item["id"] for item in profile["cv"]["certifications"][:2]],
+        )
+        payload["sections"].append(
+            {"sourceId": "certifications", "items": [{"sourceId": profile["cv"]["certifications"][0]["id"]}]}
+        )
+        with self.assertRaisesRegex(ValueError, "mode 'ordered'"):
+            assemble_profile_resume(payload, profile["cv"], policy, profile["sections"])
 
     def test_html_has_no_forced_project_page_break(self):
         profile = load_profile(ROOT / "profiles" / "john-doe")

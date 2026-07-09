@@ -1,4 +1,5 @@
 .git
+.venv
 output
 knowledge-base
 profiles/local

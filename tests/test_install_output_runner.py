@@ -18,12 +18,13 @@ class InstallOutputRunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as name:
             output_dir = Path(name) / "output" / "example-role-2026-06-22"
             runner = install_runner(output_dir)
-            self.assertEqual(runner, output_dir / "generate-resume.sh")
+            self.assertEqual(runner, output_dir / "rerun.py")
             self.assertTrue(runner.exists())
             mode = runner.stat().st_mode
             self.assertTrue(mode & stat.S_IXUSR)
             content = runner.read_text(encoding="utf8")
-            self.assertIn('exec "$ROOT/assets/generate-resume.sh" "$OUTPUT_DIR"', content)
+            self.assertIn('"rerun"', content)
+            self.assertIn("jobs_tailor_cli.py", content)
 
 
 if __name__ == "__main__":

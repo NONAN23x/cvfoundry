@@ -1,0 +1,80 @@
+version = 4
+theme = "classic-serif"
+
+[document]
+paper = "A4"
+target_pages = 1
+max_pages = 1
+
+[header]
+contact = ["phone", "email", "linkedin", "github", "website"]
+
+[quality]
+contact_lines = 1
+bottom_whitespace_min_mm = 10
+bottom_whitespace_max_mm = 18
+intermediate_page_whitespace_max_mm = 25
+
+[[sections]]
+id = "summary"
+kind = "summary"
+priority = 100
+mode = "all"
+rewrite = "source-bounded"
+lines = 3
+
+[[sections]]
+id = "experience"
+kind = "timeline"
+priority = 100
+mode = "all"
+rewrite = "source-bounded"
+entries = { one_page = 3, two_page = 3, minimum = 3 }
+bullets = { one_page = 4, two_page = 4, minimum = 3 }
+bullet_lines = 1
+
+[[sections]]
+id = "certifications"
+kind = "credentials"
+priority = 65
+mode = "ordered"
+rewrite = "none"
+entries = { one_page = 2, two_page = 3, minimum = 1 }
+
+[[sections]]
+id = "projects"
+kind = "portfolio"
+priority = 90
+mode = "ranked"
+rewrite = "source-bounded"
+entries = { one_page = 2, two_page = 6, minimum = 1 }
+bullets = { one_page = 3, two_page = 3, minimum = 2 }
+bullet_lines = 1
+
+[[sections]]
+id = "achievements"
+kind = "bullets"
+priority = 55
+mode = "ordered"
+rewrite = "none"
+entries = { one_page = 2, two_page = 2, minimum = 0 }
+required = ["achievement-rust-contributor", "achievement-systems-talk"]
+
+[[sections]]
+id = "education"
+kind = "education"
+priority = 60
+mode = "all"
+rewrite = "none"
+entries = { one_page = 1, two_page = 1, minimum = 1 }
+
+[[sections]]
+id = "technical-skills"
+kind = "skills"
+priority = 80
+mode = "all"
+rewrite = "none"
+entries = { one_page = 4, two_page = 4, minimum = 4 }
+items_per_category = { one_page = 4, two_page = 6, minimum = 3 }
+replacement_limit = 2
+skill_row_lines = 1

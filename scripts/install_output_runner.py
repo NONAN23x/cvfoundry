@@ -7,17 +7,32 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNNER_NAME = "generate-resume.sh"
+RUNNER_NAME = "rerun.py"
 
 
 def runner_wrapper() -> str:
-    return """#!/usr/bin/env bash
-set -euo pipefail
+    return """#!/usr/bin/env python3
+from __future__ import annotations
 
-OUTPUT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ROOT="$(cd "$OUTPUT_DIR/../.." && pwd)"
+import subprocess
+import sys
+from pathlib import Path
 
-exec "$ROOT/assets/generate-resume.sh" "$OUTPUT_DIR"
+
+OUTPUT_DIR = Path(__file__).resolve().parent
+ROOT = OUTPUT_DIR.parents[1]
+
+raise SystemExit(
+    subprocess.call(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "jobs_tailor_cli.py"),
+            "rerun",
+            "--out",
+            str(OUTPUT_DIR),
+        ]
+    )
+)
 """
 
 

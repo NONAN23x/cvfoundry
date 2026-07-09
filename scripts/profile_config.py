@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import tomllib
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +14,7 @@ from cv_source import load_cv
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROFILE = ROOT / "profiles" / "local"
 DEFAULT_THEME_DIR = ROOT / "themes"
+RESUME_CONFIG_FILENAME = "resume.toml"
 HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 SECTION_TYPES = {
     "summary",
@@ -23,7 +26,7 @@ SECTION_TYPES = {
     "education",
     "skills",
 }
-SELECTION_MODES = {"all", "ranked", "explicit"}
+SELECTION_MODES = {"all", "ranked", "explicit", "ordered"}
 REWRITE_MODES = {"none", "source-bounded"}
 PAGE_SIZES = {
     "A4": {"widthMm": 210.0, "heightMm": 297.0},
@@ -35,13 +38,23 @@ class ProfileConfigError(ValueError):
     pass
 
 
-def _read_object(path: Path) -> dict[str, Any]:
+def _read_json_object(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf8"))
     except (OSError, json.JSONDecodeError) as error:
         raise ProfileConfigError(f"Unable to read valid JSON from {path}: {error}") from error
     if not isinstance(value, dict):
         raise ProfileConfigError(f"{path} must contain a JSON object.")
+    return value
+
+
+def _read_toml_object(path: Path) -> dict[str, Any]:
+    try:
+        value = tomllib.loads(path.read_text(encoding="utf8"))
+    except (OSError, tomllib.TOMLDecodeError) as error:
+        raise ProfileConfigError(f"Unable to read valid TOML from {path}: {error}") from error
+    if not isinstance(value, dict):
+        raise ProfileConfigError(f"{path} must contain a TOML table.")
     return value
 
 
@@ -63,9 +76,155 @@ def _budget(value: Any, label: str) -> dict[str, int]:
     return result
 
 
+def _page_count_budget(value: Any, label: str, *, allow_zero: bool = True) -> dict[str, int]:
+    if isinstance(value, dict) and {"min", "preferred", "max"} <= set(value):
+        return _budget(value, label)
+    if not isinstance(value, dict):
+        raise ProfileConfigError(f"{label} must be an inline table.")
+    one_page = value.get("one_page")
+    two_page = value.get("two_page", one_page)
+    minimum = value.get("minimum", 0 if allow_zero else 1)
+    if not isinstance(one_page, int) or not isinstance(two_page, int):
+        raise ProfileConfigError(f"{label} requires integer one_page and two_page values.")
+    if not isinstance(minimum, int):
+        raise ProfileConfigError(f"{label}.minimum must be an integer when provided.")
+    floor = 0 if allow_zero else 1
+    if one_page < floor or two_page < floor or minimum < floor:
+        raise ProfileConfigError(f"{label} values must be at least {floor}.")
+    if not minimum <= one_page <= two_page:
+        raise ProfileConfigError(f"{label} must satisfy minimum <= one_page <= two_page.")
+    preferred = one_page
+    maximum = two_page
+    return {"min": minimum, "preferred": preferred, "max": maximum}
+
+
+def _list_of_strings(value: Any, label: str) -> list[str]:
+    if value is None:
+        return []
+    if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
+        raise ProfileConfigError(f"{label} must be a string array.")
+    if len(value) != len(set(value)):
+        raise ProfileConfigError(f"{label} must not contain duplicates.")
+    return list(value)
+
+
+def normalize_resume_toml(config: dict[str, Any], path: Path) -> dict[str, Any]:
+    if config.get("version") != 4:
+        raise ProfileConfigError(f"{path} must use version = 4.")
+    document = config.get("document")
+    if not isinstance(document, dict):
+        raise ProfileConfigError(f"{path} requires a [document] table.")
+    paper = str(document.get("paper", "")).upper()
+    target_pages = document.get("target_pages")
+    max_pages = document.get("max_pages")
+    header = config.get("header", {})
+    if header and not isinstance(header, dict):
+        raise ProfileConfigError("[header] must be a table.")
+    sections = config.get("sections")
+    if not isinstance(sections, list) or not sections:
+        raise ProfileConfigError("[[sections]] must be a non-empty array of tables.")
+    normalized_sections: list[dict[str, Any]] = []
+    layout: dict[str, Any] = {}
+    for index, section in enumerate(sections):
+        if not isinstance(section, dict):
+            raise ProfileConfigError(f"sections[{index}] must be a table.")
+        source_id = section.get("id")
+        kind = section.get("kind")
+        if kind in {"summary", "education"}:
+            for forbidden in ("bullets", "bullet_lines", "items_per_category", "skill_row_lines"):
+                if forbidden in section:
+                    raise ProfileConfigError(
+                        f"sections[{index}] {kind!r} must not configure {forbidden}."
+                    )
+        if "bullets" in section and kind not in {"timeline", "portfolio"}:
+            raise ProfileConfigError(
+                f"sections[{index}].bullets is only valid for timeline or portfolio sections."
+            )
+        selection: dict[str, Any] = {
+            "mode": section.get("mode", "all"),
+            "requiredSourceIds": _list_of_strings(section.get("required"), f"sections[{index}].required"),
+            "excludedSourceIds": _list_of_strings(section.get("excluded"), f"sections[{index}].excluded"),
+        }
+        if "entries" in section:
+            selection["entries"] = _page_count_budget(section["entries"], f"sections[{index}].entries")
+        if "bullets" in section:
+            selection["bulletsPerEntry"] = _page_count_budget(
+                section["bullets"], f"sections[{index}].bullets", allow_zero=False
+            )
+        if "items_per_category" in section:
+            if kind != "skills":
+                raise ProfileConfigError(
+                    f"sections[{index}].items_per_category is only valid for skills sections."
+                )
+            selection["itemsPerEntry"] = _page_count_budget(
+                section["items_per_category"],
+                f"sections[{index}].items_per_category",
+                allow_zero=False,
+            )
+        if "replacement_limit" in section:
+            replacement_limit = section["replacement_limit"]
+            if not isinstance(replacement_limit, int) or replacement_limit < 0:
+                raise ProfileConfigError(f"sections[{index}].replacement_limit must be non-negative.")
+            selection["maximumReplacementsPerCategory"] = replacement_limit
+        if kind == "summary" and "lines" in section:
+            value = section["lines"]
+            if not isinstance(value, int) or value < 1:
+                raise ProfileConfigError(f"sections[{index}].lines must be a positive integer.")
+            layout["maximumSummaryLines"] = value
+        if kind in {"timeline", "portfolio"} and "bullet_lines" in section:
+            value = section["bullet_lines"]
+            if not isinstance(value, int) or value < 1:
+                raise ProfileConfigError(f"sections[{index}].bullet_lines must be a positive integer.")
+            layout["maximumBulletLines"] = max(layout.get("maximumBulletLines", 1), value)
+        if kind == "skills" and "skill_row_lines" in section:
+            value = section["skill_row_lines"]
+            if not isinstance(value, int) or value < 1:
+                raise ProfileConfigError(f"sections[{index}].skill_row_lines must be a positive integer.")
+            layout["maximumSkillRowLines"] = value
+        normalized_sections.append(
+            {
+                "sourceId": source_id,
+                "type": kind,
+                "priority": section.get("priority", 0),
+                "rewrite": section.get("rewrite", "none"),
+                "selection": selection,
+            }
+        )
+    quality = config.get("quality", {})
+    if quality:
+        if not isinstance(quality, dict):
+            raise ProfileConfigError("[quality] must be a table.")
+        quality_map = {
+            "contact_lines": "requiredContactLines",
+            "bottom_whitespace_min_mm": "minimumBottomWhitespaceMm",
+            "bottom_whitespace_max_mm": "maximumBottomWhitespaceMm",
+            "intermediate_page_whitespace_max_mm": "maximumIntermediatePageWhitespaceMm",
+        }
+        for source, target in quality_map.items():
+            if source in quality:
+                layout[target] = quality[source]
+    layout.setdefault("maximumSummaryLines", 3)
+    layout.setdefault("maximumBulletLines", 1)
+    layout.setdefault("maximumSkillRowLines", 1)
+    layout.setdefault("requiredContactLines", 1)
+    layout.setdefault("minimumBottomWhitespaceMm", 10)
+    layout.setdefault("maximumBottomWhitespaceMm", 18)
+    layout.setdefault("maximumIntermediatePageWhitespaceMm", 25)
+    return {
+        "schemaVersion": 3,
+        "theme": config.get("theme"),
+        "document": {"pageSize": paper, "targetPages": target_pages, "maxPages": max_pages},
+        "header": {"contactFields": _list_of_strings(header.get("contact", []), "header.contact")},
+        "layout": layout,
+        "sections": normalized_sections,
+    }
+
+
 def validate_resume_config(config: dict[str, Any], path: Path) -> dict[str, Any]:
+    if config.get("version") == 4:
+        config = normalize_resume_toml(config, path)
     if config.get("schemaVersion") != 3:
-        raise ProfileConfigError(f"{path} must use schemaVersion 3.")
+        raise ProfileConfigError(f"{path} must use version = 4.")
     document = config.get("document")
     if not isinstance(document, dict):
         raise ProfileConfigError(f"{path} requires a document object.")
@@ -109,6 +268,12 @@ def validate_resume_config(config: dict[str, Any], path: Path) -> dict[str, Any]
         rewrite = section.get("rewrite", "none")
         if rewrite not in REWRITE_MODES:
             raise ProfileConfigError(f"sections[{index}].rewrite is invalid.")
+        if mode == "ordered" and rewrite != "none":
+            raise ProfileConfigError(f"sections[{index}] uses ordered mode and must set rewrite = 'none'.")
+        if mode == "ordered" and section_type in {"timeline", "portfolio"}:
+            raise ProfileConfigError(
+                f"sections[{index}] uses ordered mode, which is only valid for non-bullet-entry sections."
+            )
         selection = dict(section.get("selection", {}))
         selection["mode"] = mode
         for list_name in ("requiredSourceIds", "excludedSourceIds"):
@@ -235,21 +400,27 @@ def canonical_sections(cv: dict[str, Any]) -> list[dict[str, Any]]:
 def load_profile(profile_dir: Path = DEFAULT_PROFILE) -> dict[str, Any]:
     profile_dir = profile_dir.resolve()
     cv_path = profile_dir / "CV.md"
-    resume_path = profile_dir / "resume.json"
+    resume_path = profile_dir / RESUME_CONFIG_FILENAME
+    legacy_resume_path = profile_dir / "resume.json"
     writing_style_path = profile_dir / "Writing-Style.md"
     missing = [
         path.name
         for path in (cv_path, writing_style_path, resume_path)
         if not path.is_file()
     ]
+    if resume_path.name in missing and legacy_resume_path.is_file():
+        raise ProfileConfigError(
+            f"Profile {profile_dir} still uses resume.json. Run "
+            f"'uv run jobs-tailor migrate-config --profile {profile_dir}' to create resume.toml."
+        )
     if missing:
         raise ProfileConfigError(
             f"Profile {profile_dir} is incomplete; missing {', '.join(missing)}. "
-            f"Run './jobs-tailor init {profile_dir}' to create a private profile."
+            f"Run 'uv run jobs-tailor init {profile_dir}' to create a private profile."
         )
-    config = validate_resume_config(_read_object(resume_path), resume_path)
+    config = validate_resume_config(_read_toml_object(resume_path), resume_path)
     theme_path = DEFAULT_THEME_DIR / f"{config['theme']}.json"
-    theme = validate_theme(_read_object(theme_path), theme_path, profile_dir)
+    theme = validate_theme(_read_json_object(theme_path), theme_path, profile_dir)
     cv = load_cv(cv_path)
     section_index = {section["id"]: section for section in canonical_sections(cv)}
     for configured in config["sections"]:
@@ -260,6 +431,13 @@ def load_profile(profile_dir: Path = DEFAULT_PROFILE) -> dict[str, Any]:
             raise ProfileConfigError(
                 f"Configured section {source_id!r} type does not match CV.md."
             )
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        hash_jobs = {
+            "cv": executor.submit(_hash_file, cv_path),
+            "resumeConfig": executor.submit(_hash_file, resume_path),
+            "theme": executor.submit(_hash_file, theme_path),
+        }
+        hashes = {name: job.result() for name, job in hash_jobs.items()}
     return {
         "root": profile_dir,
         "cvPath": cv_path,
@@ -270,11 +448,7 @@ def load_profile(profile_dir: Path = DEFAULT_PROFILE) -> dict[str, Any]:
         "sections": section_index,
         "config": config,
         "theme": theme,
-        "hashes": {
-            "cv": _hash_file(cv_path),
-            "resumeConfig": _hash_file(resume_path),
-            "theme": _hash_file(theme_path),
-        },
+        "hashes": hashes,
     }
 
 

@@ -3,67 +3,103 @@
 ## 1. Create a private profile
 
 ```bash
-./jobs-tailor init profiles/local
+uv sync
+uv run jobs-tailor init profiles/local
 ```
 
-`profiles/local/` is ignored by Git and the Docker build context. It contains your private:
+`profiles/local/` is ignored by Git and the Docker build context. It contains:
 
-- `CV.md`: the only factual source.
-- `resume.json`: page, section, entry, and bullet rules.
-- `Writing-Style.md`: wording preferences only.
+- `CV.md`: your only factual source.
+- `resume.toml`: human-editable tailoring rules.
+- `Writing-Style.md`: voice preferences only.
 
-Do not edit the tracked John Doe profile for personal use. Read
-`profiles/john-doe/CV.md` to learn the required headings, metadata comments, stable IDs,
-links, and bullet format, then write your own facts in `profiles/local/CV.md`.
+Use `profiles/john-doe/CV.md` as the format reference, then write your own facts in
+`profiles/local/CV.md`.
 
 ## 2. Configure resume rules
 
-The scaffolded `profiles/local/resume.json` starts from the tracked
-`templates/profile/resume.json` default.
+The scaffolded profile starts from `templates/profile/resume.toml`.
 
-| Rule | Purpose |
+Common TOML fields:
+
+| Field | Purpose |
 | --- | --- |
-| `document.targetPages` | Desired length: `1` uses preferred budgets; `2` uses maximum budgets. |
-| `document.maxPages` | Hard one- or two-page PDF cap. |
-| `sections` | Exact included sections and rendered order. |
-| `selection.mode` | `all`, job-ranked selection, or explicit required IDs. |
-| `selection.entries` | Minimum, preferred, and maximum entries. |
-| `selection.bulletsPerEntry` | Minimum, preferred, and maximum bullets per entry. |
-| `selection.itemsPerEntry` | Skill items retained per skill category. |
-| `layout.maximumSummaryLines` | Maximum rendered summary lines. |
-| `layout.maximumBulletLines` | Maximum rendered lines per bullet. |
-| `layout.maximumSkillRowLines` | Maximum rendered lines per skill row. |
-| `theme` | Tracked theme containing fonts, colors, geometry, and spacing. |
+| `[document].paper` | `A4` or `LETTER`. |
+| `[document].target_pages` | Desired resume length. |
+| `[document].max_pages` | Hard PDF page cap. |
+| `[header].contact` | Contact fields to show. |
+| `[[sections]].id` | CV section source ID. |
+| `[[sections]].kind` | Section type such as `timeline`, `portfolio`, `skills`, or `education`. |
+| `[[sections]].mode` | `all`, `ranked`, `explicit`, or `ordered`. Use `ordered` for deterministic CV-order sections such as certifications and achievements. |
+| `[[sections]].entries` | `{ one_page = ..., two_page = ..., minimum = ... }`. |
+| `[[sections]].bullets` | Bullet budget for bullet-bearing sections only. |
+| `[[sections]].items_per_category` | Skill item budget for skills sections. |
+| `[[sections]].required` / `excluded` | Source IDs that must or must not be used. |
+| `[quality]` | Output validation thresholds such as whitespace and contact-line expectations. |
+| `theme` | Theme file for fonts, colors, margins, typography, and spacing. |
 
-For two pages, set both `targetPages` and `maxPages` to `2`. CvFoundry expands toward
-maximum source-backed budgets and never invents filler.
+Example one-page section:
 
-## 3. Validate
-
-```bash
-./jobs-tailor doctor
-./jobs-tailor validate
+```toml
+[[sections]]
+id = "projects"
+kind = "portfolio"
+mode = "ranked"
+rewrite = "source-bounded"
+entries = { one_page = 2, two_page = 5, minimum = 1 }
+bullets = { one_page = 3, two_page = 5, minimum = 1 }
+bullet_lines = 1
 ```
 
-Fix every reported profile, font, runtime, or policy error before building.
+Example two-page document target:
+
+```toml
+[document]
+paper = "A4"
+target_pages = 2
+max_pages = 2
+```
+
+CvFoundry clamps counts to available CV content and never invents filler.
+
+## 3. Validate and inspect
+
+```bash
+uv run jobs-tailor doctor
+uv run jobs-tailor first-run
+uv run jobs-tailor validate
+uv run jobs-tailor explain-rules
+```
+
+Fix reported profile, font, runtime, or policy errors before building.
 
 ## 4. Prepare and build
 
 ```bash
-./jobs-tailor prepare --job job-description.md --out output/run
-./jobs-tailor build --payload output/run/tailoring-payload.json --out output/run
-./jobs-tailor check --out output/run --reinspect
+uv run jobs-tailor prepare --job job-description.md --out output/run
+uv run jobs-tailor build --payload output/run/tailoring-payload.json --out output/run
+uv run jobs-tailor check --out output/run --reinspect
 ```
 
 `prepare` does not call an LLM. It creates a deterministic brief from the job description
 and eligible source IDs. An agent or person writes the small tailoring payload; CvFoundry
 then injects locked facts, renders outputs, and validates provenance and layout.
 
-## 5. Inspect the result
+## 5. Inspect or rerun
 
-- `effective-policy.json`: exact resolved section, entry, and bullet counts.
+```bash
+uv run jobs-tailor status --out output/run
+uv run jobs-tailor inspect-run --out output/run
+uv run jobs-tailor rerun --out output/run
+```
+
+Generated evidence:
+
+- `effective-policy.json`: exact resolved rule application.
 - `decision-report.json`: selections, page use, spacing, whitespace, and suggestions.
 - `layout-validation.json`: PDF geometry, fonts, links, accessibility, and overflow checks.
 
-Generated resumes stay under ignored `output/`. To intentionally publish a reusable
-fictional profile, place it outside `profiles/local/` and review every file before adding it.
+## 6. Renderer environments
+
+Most commands are native cross-platform Python. LibreOffice rendering is environment-sensitive.
+Use the Docker image when native LibreOffice/UNO is missing, especially on Windows.

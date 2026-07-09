@@ -167,11 +167,11 @@ class ResumeQualityTests(unittest.TestCase):
             ("fit-summary.json", "{}"),
             ("fit-summary.md", "Fit"),
             ("tailoring-notes.md", "Notes"),
-            ("generate-resume.sh", "#!/usr/bin/env bash\n"),
+            ("rerun.py", "#!/usr/bin/env python3\n"),
         ):
             (output / name).write_text(text, encoding="utf8")
-        (output / "generate-resume.sh").chmod(
-            (output / "generate-resume.sh").stat().st_mode | stat.S_IXUSR
+        (output / "rerun.py").chmod(
+            (output / "rerun.py").stat().st_mode | stat.S_IXUSR
         )
         odt_path = output / "tailored-resume.odt"
         with zipfile.ZipFile(odt_path, "w") as archive:
@@ -302,13 +302,8 @@ class ResumeQualityTests(unittest.TestCase):
         result = self.analyze(output)
         self.assertIn("Missing required file: tailored-resume.odt", result["issues"])
 
-    def test_new_generator_requires_tailoring_payload(self):
+    def test_rerun_helper_requires_tailoring_payload(self):
         output = self.create_output()
-        generator = output / "generate-resume.sh"
-        generator.write_text(
-            (ROOT / "assets" / "generate-resume.sh").read_text(encoding="utf8"),
-            encoding="utf8",
-        )
         (output / "tailoring-payload.json").unlink()
         result = self.analyze(output)
         self.assertIn("Missing required file: tailoring-payload.json", result["issues"])
