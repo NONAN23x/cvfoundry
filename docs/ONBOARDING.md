@@ -77,12 +77,12 @@ Fix reported profile, font, runtime, or policy errors before building.
 
 ```bash
 uv run jobs-tailor prepare --job job-description.md --out output/run
-uv run jobs-tailor build --payload output/run/tailoring-payload.json --out output/run
+uv run jobs-tailor build --renderer auto --payload output/run/tailoring-payload.json --out output/run
 uv run jobs-tailor check --out output/run --reinspect
 ```
 
 `prepare` does not call an LLM. It creates a deterministic brief from the job description
-and eligible source IDs. An agent or person writes the small tailoring payload; CvFoundry
+and eligible source IDs plus `payload-skeleton.json`. An agent or person writes the small tailoring payload; CvFoundry
 then injects locked facts, renders outputs, and validates provenance and layout.
 
 ## 5. Inspect or rerun

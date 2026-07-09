@@ -224,6 +224,16 @@ class ResumeQualityTests(unittest.TestCase):
         result = self.analyze(self.create_output())
         self.assertTrue(result["ok"], result["issues"])
 
+    def test_surfaces_layout_warnings_without_failing(self):
+        output = self.create_output()
+        report_path = output / "layout-validation.json"
+        report = json.loads(report_path.read_text())
+        report["warnings"] = ["Bottom whitespace is 22.2mm, accepted because the resume is source-limited."]
+        report_path.write_text(json.dumps(report))
+        result = self.analyze(output)
+        self.assertTrue(result["ok"], result["issues"])
+        self.assertTrue(result["warnings"])
+
     def test_pdf_filename_uses_first_name_and_headline(self):
         data = tailored_resume(self.cv)
         data["basics"]["headline"] = "Network & Infrastructure Engineer"

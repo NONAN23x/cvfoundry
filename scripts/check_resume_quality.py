@@ -136,6 +136,7 @@ def analyze_output_dir(
     resume_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     issues: list[str] = []
+    warnings: list[str] = []
     policy = policy or json.loads(POLICY_PATH.read_text(encoding="utf8"))
     required_files = list(REQUIRED_FILES)
     if policy.get("sectionsById"):
@@ -243,6 +244,7 @@ def analyze_output_dir(
         else ""
     )
     if report is not None:
+        warnings.extend(str(item) for item in report.get("warnings", []))
         expected_report_schema = 4 if report.get("sourceResumeConfigSha256") else 3
         if report.get("schemaVersion") != expected_report_schema:
             issues.append(
@@ -331,6 +333,7 @@ def analyze_output_dir(
                 ),
             )
             issues.extend(f"PDF inspection: {issue}" for issue in fresh["issues"])
+            warnings.extend(f"PDF inspection: {warning}" for warning in fresh.get("warnings", []))
             if report is not None:
                 for field in (
                     "pdfSha256",
@@ -361,6 +364,7 @@ def analyze_output_dir(
         "bulletCount": bullet_count,
         "pageCount": report.get("pageCount") if report else None,
         "issues": issues,
+        "warnings": warnings,
     }
 
 

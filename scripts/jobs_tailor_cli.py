@@ -75,6 +75,57 @@ def _locked_policy_sections(policy: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def _same_path(left: Path, right: Path) -> bool:
+    try:
+        return left.samefile(right)
+    except FileNotFoundError:
+        return left.resolve() == right.resolve()
+
+
+def _container_path(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return "/workspace/" + str(resolved.relative_to(ROOT))
+    except ValueError as error:
+        raise ValueError(f"Docker renderer paths must live under {ROOT}: {path}") from error
+
+
+def _can_render_locally() -> bool:
+    return bool(shutil.which("libreoffice") or shutil.which("soffice")) and importlib.util.find_spec("uno") is not None
+
+
+def _run_docker_build(args: argparse.Namespace) -> dict[str, Any]:
+    image = os.environ.get("CVFOUNDRY_DOCKER_IMAGE", "cvfoundry:latest")
+    command = [
+        "docker",
+        "run",
+        "--rm",
+        "-u",
+        f"{os.getuid()}:{os.getgid()}",
+        "-v",
+        f"{ROOT}:/workspace",
+        "-w",
+        "/workspace",
+        image,
+        "build",
+        "--renderer",
+        "local",
+        "--profile",
+        _container_path(args.profile),
+        "--payload",
+        _container_path(args.payload),
+        "--out",
+        _container_path(args.out),
+    ]
+    completed = subprocess.run(command, capture_output=True, text=True, check=False)
+    if completed.returncode != 0:
+        raise ValueError((completed.stderr or completed.stdout).strip())
+    try:
+        return json.loads(completed.stdout)
+    except json.JSONDecodeError as error:
+        raise ValueError(completed.stdout.strip()) from error
+
+
 def _toml_string(value: str) -> str:
     return json.dumps(value)
 
@@ -224,6 +275,61 @@ def _decision_report(
     }
 
 
+def _payload_skeleton(
+    profile: dict[str, Any],
+    policy: dict[str, Any],
+    fit: dict[str, Any],
+    locked_ids: set[str],
+) -> dict[str, Any]:
+    rankings = {
+        "experience": fit.get("experienceRanking", []),
+        "projects": fit.get("projectRanking", []),
+        **fit.get("sectionRankings", {}),
+    }
+
+    def ordered_ids(section: dict[str, Any]) -> list[str]:
+        ranked_ids = [item["id"] for item in rankings.get(section["sourceId"], [])]
+        available = section["availableSourceIds"]
+        if section["selectionMode"] == "ranked" and ranked_ids:
+            selected = [item_id for item_id in ranked_ids if item_id in available]
+            selected.extend(item_id for item_id in available if item_id not in selected)
+            return selected[: section["effectiveEntryCount"]]
+        return available[: section["effectiveEntryCount"]]
+
+    sections: list[dict[str, Any]] = []
+    for section in policy["sections"]:
+        source_id = section["sourceId"]
+        if source_id in locked_ids or source_id == "summary":
+            continue
+        canonical = {item["id"]: item for item in profile["sections"][source_id].get("items", [])}
+        items: list[dict[str, Any]] = []
+        for item_id in ordered_ids(section):
+            source = canonical[item_id]
+            item: dict[str, Any] = {"sourceId": item_id}
+            if source.get("bullets") is not None:
+                item["bullets"] = [
+                    {"sourceId": bullet["id"], "sourceText": bullet["text"], "text": ""}
+                    for bullet in source["bullets"][: section["effectiveBulletCounts"].get(item_id, 0)]
+                ]
+            elif source_id == "technical-skills":
+                item["priorityItems"] = []
+                item["availableItems"] = source.get("items", [])
+            else:
+                item["sourceText"] = " ".join(
+                    str(value) if not isinstance(value, list) else " ".join(value)
+                    for key, value in source.items()
+                    if key != "id"
+                )
+            items.append(item)
+        sections.append({"sourceId": source_id, "items": items})
+    return {
+        "schemaVersion": 3,
+        "jobTitle": "",
+        "summary": {"text": "", "sourceIds": [profile["cv"]["summarySourceId"]]},
+        "sections": sections,
+    }
+
+
 def command_init(args: argparse.Namespace) -> dict[str, Any]:
     destination = args.profile.resolve()
     if destination.exists() and any(destination.iterdir()):
@@ -333,7 +439,9 @@ def command_prepare(args: argparse.Namespace) -> dict[str, Any]:
     job_text = args.job.read_text(encoding="utf8")
     output = args.out.resolve()
     output.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(args.job, output / "job-description.md")
+    job_copy = output / "job-description.md"
+    if not _same_path(args.job, job_copy):
+        shutil.copy2(args.job, job_copy)
     fit = build_summary(job_text, profile["cv"])
     enabled = {section["sourceId"] for section in profile["config"]["sections"]}
     if "projects" not in enabled:
@@ -369,6 +477,7 @@ def command_prepare(args: argparse.Namespace) -> dict[str, Any]:
         },
     }
     _write_json(output / "tailoring-brief.json", brief)
+    _write_json(output / "payload-skeleton.json", _payload_skeleton(profile, effective_policy, fit, locked_ids))
     _write_json(output / "effective-policy.json", effective_policy)
     _write_json(
         output / "decision-report.json",
@@ -380,6 +489,12 @@ def command_prepare(args: argparse.Namespace) -> dict[str, Any]:
 
 def command_build(args: argparse.Namespace) -> dict[str, Any]:
     from generate_resume import generate
+
+    renderer = getattr(args, "renderer", "auto")
+    if renderer == "docker" or (renderer == "auto" and not _can_render_locally()):
+        if renderer == "auto" and not shutil.which("docker"):
+            raise ValueError("Local LibreOffice/UNO is unavailable and Docker is missing.")
+        return _run_docker_build(args)
 
     profile = load_profile(args.profile)
     payload = json.loads(args.payload.read_text(encoding="utf8"))
@@ -403,6 +518,12 @@ def command_build(args: argparse.Namespace) -> dict[str, Any]:
     _write_json(assembled_path, tailored)
     _write_json(output / "tailoring-payload.json", payload)
     _write_json(output / "effective-policy.json", policy)
+    notes_path = output / "tailoring-notes.md"
+    if not notes_path.exists():
+        notes_path.write_text(
+            "# Tailoring Notes\n\nGenerated by `jobs-tailor build`; no manual notes were supplied.\n",
+            encoding="utf8",
+        )
     with OutputLock(output):
         previous_lock = os.environ.get(PIPELINE_LOCK_ENV)
         os.environ[PIPELINE_LOCK_ENV] = "1"
@@ -432,7 +553,7 @@ def command_rerun(args: argparse.Namespace) -> dict[str, Any]:
     payload = output / "tailoring-payload.json"
     if not payload.is_file():
         raise ValueError(f"Missing tailoring-payload.json in {output}.")
-    build_args = argparse.Namespace(profile=args.profile, payload=payload, out=output)
+    build_args = argparse.Namespace(profile=args.profile, payload=payload, out=output, renderer=getattr(args, "renderer", "auto"))
     result = command_build(build_args)
     if result.get("ok"):
         data = json.loads((output / "tailored-resume.json").read_text(encoding="utf8"))
@@ -613,10 +734,12 @@ def parser() -> argparse.ArgumentParser:
     build.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
     build.add_argument("--payload", type=Path, required=True)
     build.add_argument("--out", type=Path, required=True)
+    build.add_argument("--renderer", choices=("auto", "local", "docker"), default="auto")
     build.set_defaults(handler=command_build)
     rerun = commands.add_parser("rerun")
     rerun.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
     rerun.add_argument("--out", type=Path, required=True)
+    rerun.add_argument("--renderer", choices=("auto", "local", "docker"), default="auto")
     rerun.set_defaults(handler=command_rerun)
     check = commands.add_parser("check")
     check.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)

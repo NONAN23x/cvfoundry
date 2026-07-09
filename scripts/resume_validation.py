@@ -17,6 +17,12 @@ ALIAS_PATTERNS = (
     (re.compile(r"\bui\b", re.IGNORECASE), "uiux"),
     (re.compile(r"\bux\b", re.IGNORECASE), "uiux"),
 )
+SOFT_CLAIM_PATTERNS = (
+    (re.compile(r"\bcalm(?:ly)?\b", re.IGNORECASE), "calm"),
+    (re.compile(r"\bpassionate\b", re.IGNORECASE), "passionate"),
+    (re.compile(r"\bstrong communicator\b", re.IGNORECASE), "strong communicator"),
+    (re.compile(r"\bteam player\b", re.IGNORECASE), "team player"),
+)
 
 
 def _index(items: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -47,10 +53,18 @@ def _claim_tokens(text: str, technology_terms: set[str]) -> set[str]:
     canonical_text = _canonicalize_aliases(text)
     for token in TOKEN_RE.findall(canonical_text):
         folded = token.casefold()
+        normalized = (
+            folded[:-1]
+            if folded.endswith("s") and not folded.endswith("ss") and len(folded) > 3
+            else folded
+        )
         is_named_term = folded in technology_terms
-        is_acronym = len(token) > 1 and token.upper() == token and any(ch.isalpha() for ch in token)
+        is_acronym = (
+            (len(token) > 1 and token.upper() == token)
+            or (len(token) > 3 and token[:-1].upper() == token[:-1] and token.endswith("s"))
+        ) and any(ch.isalpha() for ch in token)
         if is_named_term or is_acronym:
-            claims.add(folded)
+            claims.add(normalized)
     return claims
 
 
@@ -63,6 +77,10 @@ def _canonicalize_aliases(text: str) -> str:
     for pattern, replacement in ALIAS_PATTERNS:
         canonical = pattern.sub(replacement, canonical)
     return canonical
+
+
+def _soft_claims(text: str) -> set[str]:
+    return {label for pattern, label in SOFT_CLAIM_PATTERNS if pattern.search(text)}
 
 
 def validate_source_bounded_text(
@@ -82,6 +100,12 @@ def validate_source_bounded_text(
         issues.append(
             f"{label} adds unsupported factual tokens: "
             + ", ".join(sorted(unsupported_tokens))
+        )
+    unsupported_soft_claims = _soft_claims(rewritten_text) - _soft_claims(source_text)
+    if unsupported_soft_claims:
+        issues.append(
+            f"{label} adds unsupported soft claims: "
+            + ", ".join(sorted(unsupported_soft_claims))
         )
     return issues
 
@@ -162,6 +186,14 @@ def validate_tailored_resume(
                 issues.append(
                     "Summary adds unsupported factual tokens: "
                     + ", ".join(sorted(unsupported_tokens))
+                )
+            unsupported_soft_claims = _soft_claims(summary_text) - _soft_claims(
+                supported_summary_text
+            )
+            if unsupported_soft_claims:
+                issues.append(
+                    "Summary adds unsupported soft claims: "
+                    + ", ".join(sorted(unsupported_soft_claims))
                 )
 
     basics = tailored.get("basics", {})

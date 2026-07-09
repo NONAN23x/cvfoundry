@@ -24,8 +24,10 @@ from profile_config import (  # noqa: E402
     resolve_effective_policy,
 )
 from generate_resume import render_html  # noqa: E402
-from jobs_tailor_cli import command_first_run, command_init, command_prepare  # noqa: E402
+from jobs_tailor_cli import command_build, command_first_run, command_init, command_prepare  # noqa: E402
+from resume_validation import validate_source_bounded_text  # noqa: E402
 from test_assemble_resume import payload_from_cv  # noqa: E402
+from unittest.mock import patch
 
 
 class ProfileV3Tests(unittest.TestCase):
@@ -74,6 +76,53 @@ class ProfileV3Tests(unittest.TestCase):
             self.assertEqual(report["document"]["targetPages"], 1)
             self.assertIsNone(report["layout"])
             self.assertEqual(report["sections"][1]["resolvedEntryCount"], 1)
+            skeleton = json.loads((output / "payload-skeleton.json").read_text())
+            self.assertEqual(skeleton["schemaVersion"], 3)
+            self.assertTrue(skeleton["sections"])
+
+    def test_prepare_allows_job_description_already_in_output_dir(self):
+        with tempfile.TemporaryDirectory() as name:
+            output = Path(name)
+            job = output / "job-description.md"
+            job.write_text("Software Engineer using Python and PostgreSQL", encoding="utf8")
+            result = command_prepare(
+                argparse.Namespace(
+                    profile=ROOT / "profiles" / "example-software-engineer",
+                    job=job,
+                    out=output,
+                )
+            )
+            self.assertTrue(result["ok"])
+
+    def test_build_writes_default_tailoring_notes(self):
+        with tempfile.TemporaryDirectory() as name:
+            output = Path(name)
+            profile = load_profile(ROOT / "profiles" / "john-doe")
+            payload = from_legacy_payload(payload_from_cv(profile["cv"]))
+            payload_path = output / "tailoring-payload.json"
+            payload_path.write_text(json.dumps(payload), encoding="utf8")
+            with patch("generate_resume.generate", return_value={"ok": True}):
+                result = command_build(
+                    argparse.Namespace(
+                        profile=ROOT / "profiles" / "john-doe",
+                        payload=payload_path,
+                        out=output,
+                        renderer="local",
+                    )
+                )
+            self.assertTrue(result["ok"])
+            self.assertTrue((output / "tailoring-notes.md").is_file())
+
+    def test_copy_quality_lints_unsourced_soft_claims_but_allows_cve_plural(self):
+        cv = load_profile(ROOT / "profiles" / "john-doe")["cv"]
+        self.assertFalse(validate_source_bounded_text("triaged CVEs", "triaged CVE", cv, "summary"))
+        issues = validate_source_bounded_text(
+            "worked with developers",
+            "worked calmly with developers",
+            cv,
+            "summary",
+        )
+        self.assertTrue(any("unsupported soft claims" in issue for issue in issues))
 
     def test_scaffold_cv_parses_optional_sections(self):
         cv = parse_cv_text((ROOT / "templates" / "profile" / "CV.md").read_text(encoding="utf8"))

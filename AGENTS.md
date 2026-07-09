@@ -51,7 +51,7 @@ uv run jobs-tailor first-run
 uv run jobs-tailor doctor
 uv run jobs-tailor validate
 uv run jobs-tailor prepare --job <job-description> --out <run-directory>
-uv run jobs-tailor build --payload <run-directory>/tailoring-payload.json --out <run-directory>
+uv run jobs-tailor build --renderer auto --payload <run-directory>/tailoring-payload.json --out <run-directory>
 uv run jobs-tailor check --out <run-directory> --reinspect
 ```
 

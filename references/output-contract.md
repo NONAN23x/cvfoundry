@@ -8,6 +8,7 @@ Required files:
 - `fit-summary.json`
 - `fit-summary.md`
 - `tailoring-brief.json`
+- `payload-skeleton.json`
 - `effective-policy.json`
 - `decision-report.json`
 - `tailoring-payload.json`
@@ -32,4 +33,4 @@ reading order, embedded fonts, PDF/UA tags, Writer/LibreOffice metadata, provena
 current source hashes. `effective-policy.json` is the inspectable record of resolved
 section, entry, and per-source bullet counts.
 
-`tailoring-payload.json` is the only agent-authored resume input. `tailored-resume.json` and all rendered files are deterministic derivatives. Edit the payload, then run `uv run jobs-tailor rerun --out <output-dir>` or execute the generated `rerun.py`; do not hand-edit assembled JSON, HTML, ODT, or PDF as alternate sources.
+`payload-skeleton.json` is a drafting aid, not an accepted input. `tailoring-payload.json` is the only agent-authored resume input. `tailored-resume.json` and all rendered files are deterministic derivatives. Edit the payload, then run `uv run jobs-tailor rerun --out <output-dir>` or execute the generated `rerun.py`; do not hand-edit assembled JSON, HTML, ODT, or PDF as alternate sources.

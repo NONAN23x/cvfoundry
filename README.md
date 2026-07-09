@@ -27,8 +27,8 @@ uv run jobs-tailor first-run
 uv run jobs-tailor doctor
 uv run jobs-tailor validate
 uv run jobs-tailor prepare --job job-description.md --out output/run
-# Create output/run/tailoring-payload.json from output/run/tailoring-brief.json.
-uv run jobs-tailor build --payload output/run/tailoring-payload.json --out output/run
+# Create output/run/tailoring-payload.json from the brief and payload skeleton.
+uv run jobs-tailor build --renderer auto --payload output/run/tailoring-payload.json --out output/run
 uv run jobs-tailor check --out output/run --reinspect
 ```
 

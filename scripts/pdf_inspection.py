@@ -307,6 +307,11 @@ def inspect_pdf(
             f"Bottom whitespace is {bottom_whitespace_mm:.1f}mm; maximum is "
             f"{policy['maximumBottomWhitespaceMm']}mm."
         )
+    warnings = []
+    if bottom_whitespace_mm > policy["maximumBottomWhitespaceMm"] and source_limited:
+        warnings.append(
+            f"Bottom whitespace is {bottom_whitespace_mm:.1f}mm, accepted because the resume is source-limited."
+        )
 
     fonts_output = cache.run([cache.command("pdffonts"), str(pdf_path)])
     expected_font = theme["font"]["family"] if theme else "Gelasio"
@@ -349,6 +354,7 @@ def inspect_pdf(
     return {
         "schemaVersion": 4 if resume_config else 3,
         "ok": not issues,
+        "warnings": warnings,
         "pdfSha256": hashlib.sha256(pdf_path.read_bytes()).hexdigest(),
         "sourceJsonSha256": source_json_sha256,
         "sourceCvSha256": tailored["sourceCvSha256"],

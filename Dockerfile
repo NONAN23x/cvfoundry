@@ -17,4 +17,4 @@ COPY . /workspace
 RUN chmod +x /workspace/jobs-tailor \
     && uv sync --frozen
 
-ENTRYPOINT ["uv", "run", "jobs-tailor"]
+ENTRYPOINT ["/tmp/cvfoundry-venv/bin/jobs-tailor"]

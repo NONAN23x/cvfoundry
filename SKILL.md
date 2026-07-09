@@ -42,10 +42,10 @@ uv run jobs-tailor explain-rules --profile <profile-dir>
 uv run jobs-tailor prepare --profile <profile-dir> --job <job-description> --out <output-dir>
 ```
 
-If `first-run` fails, stop and ask the user to finish profile setup. Create schema-v3 `tailoring-payload.json` from `tailoring-brief.json` with only permitted editorial decisions. Then run:
+If `first-run` fails, stop and ask the user to finish profile setup. Create schema-v3 `tailoring-payload.json` from `tailoring-brief.json` and `payload-skeleton.json` with only permitted editorial decisions. Then run:
 
 ```bash
-uv run jobs-tailor build --profile <profile-dir> --payload <output-dir>/tailoring-payload.json --out <output-dir>
+uv run jobs-tailor build --renderer auto --profile <profile-dir> --payload <output-dir>/tailoring-payload.json --out <output-dir>
 uv run jobs-tailor check --profile <profile-dir> --out <output-dir> --reinspect
 ```
 
