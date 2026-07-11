@@ -136,7 +136,7 @@ class WriterIntegrationTests(unittest.TestCase):
                 )
                 page_texts.append(completed.stdout)
             self.assertIn("PROJECTS", page_texts[0])
-            self.assertIn("PROJECTS", page_texts[0])
+            self.assertTrue(page_texts[1].strip(), "expected content on the second page")
             self.assertTrue(any("Key-Value Store" in text for text in page_texts))
 
 

@@ -21,9 +21,9 @@ from payload_v3 import to_legacy_payload
 from profile_assembly import assemble_profile_resume
 from profile_config import canonical_sections
 from resume_validation import validate_tailored_resume
+from runtime_paths import ROOT
 
 
-ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / "config" / "resume-policy.json"
 DEFAULT_CV_PATH = ROOT / "profiles" / "john-doe" / "CV.md"
 SECTION_ORDER = [

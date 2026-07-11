@@ -44,18 +44,31 @@ Do not encode profile-specific page counts, bullet counts, or section choices in
 
 ## Normal Workflow
 
+Run preflight before tailoring in a fresh chat or after environment changes:
+
 ```bash
-uv sync
-uv run jobs-tailor init profiles/local
-uv run jobs-tailor first-run
-uv run jobs-tailor doctor
-uv run jobs-tailor validate
-uv run jobs-tailor prepare --job <job-description> --out <run-directory>
-uv run jobs-tailor build --renderer auto --payload <run-directory>/tailoring-payload.json --out <run-directory>
-uv run jobs-tailor check --out <run-directory> --reinspect
+python3 scripts/agent_preflight.py
 ```
 
-Run `first-run` before tailoring a fresh clone or fresh chat. If it returns `ok: false`, stop and ask the user to finish the profile setup instead of guessing. Use `uv run jobs-tailor explain-rules`, `status`, and `inspect-run` when you need to understand current state before acting.
+The preflight uses the normal `.venv`, keeps uv cache writes inside the repo with
+`UV_CACHE_DIR=.uv-cache`, validates `profiles/local`, and ensures the Docker renderer
+image matches the current source. If `.venv` is not writable, stop and ask the user to
+fix ownership instead of routing around it.
+
+After preflight, keep using the repo-local uv cache for agent commands:
+
+```bash
+UV_CACHE_DIR=.uv-cache uv sync
+UV_CACHE_DIR=.uv-cache uv run jobs-tailor init profiles/local
+UV_CACHE_DIR=.uv-cache uv run jobs-tailor first-run
+UV_CACHE_DIR=.uv-cache uv run jobs-tailor doctor
+UV_CACHE_DIR=.uv-cache uv run jobs-tailor validate
+UV_CACHE_DIR=.uv-cache uv run jobs-tailor prepare --job <job-description> --out <run-directory>
+UV_CACHE_DIR=.uv-cache uv run jobs-tailor build --renderer auto --payload <run-directory>/tailoring-payload.json --out <run-directory>
+UV_CACHE_DIR=.uv-cache uv run jobs-tailor check --out <run-directory> --reinspect
+```
+
+Run `first-run` before tailoring a fresh clone or fresh chat. If it returns `ok: false`, stop and ask the user to finish the profile setup instead of guessing. Use `UV_CACHE_DIR=.uv-cache uv run jobs-tailor explain-rules`, `status`, and `inspect-run` when you need to understand current state before acting.
 
 ## Rendering and QA
 
@@ -63,7 +76,8 @@ Run `first-run` before tailoring a fresh clone or fresh chat. If it returns `ok:
 - LibreOffice/PDF rendering may use Docker when native UNO tooling is missing or unreliable.
 - Output generation must remain locked, isolated, atomic, and failure-preserving.
 - Let sections flow naturally across pages; keep only structural units together.
-- PDF acceptance requires configured page limits, embedded configured fonts, valid links, semantic reading order, PDF/UA metadata, Writer/LibreOffice metadata, and current source hashes.
+- Agent tailoring runs stop after deterministic build and `jobs-tailor check --reinspect` evidence. Do not run Chrome, Browser Connector, Computer Use, screenshots, rendered PNG review, or any other manual visual audit unless the user explicitly asks for visual/layout inspection.
+- PDF acceptance requires configured page limits, embedded configured fonts, valid links, semantic reading order, PDF/UA metadata, Writer/LibreOffice metadata, and current source hashes from the generated validation artifacts.
 
 ## Development Rules
 

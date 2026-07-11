@@ -24,7 +24,14 @@ from profile_config import (  # noqa: E402
     resolve_effective_policy,
 )
 from generate_resume import render_html  # noqa: E402
-from jobs_tailor_cli import command_build, command_first_run, command_init, command_prepare  # noqa: E402
+from jobs_tailor_cli import (  # noqa: E402
+    OutputLock,
+    _docker_user_args,
+    command_build,
+    command_first_run,
+    command_init,
+    command_prepare,
+)
 from resume_validation import validate_source_bounded_text  # noqa: E402
 from test_assemble_resume import payload_from_cv  # noqa: E402
 from unittest.mock import patch
@@ -112,6 +119,82 @@ class ProfileV3Tests(unittest.TestCase):
                 )
             self.assertTrue(result["ok"])
             self.assertTrue((output / "tailoring-notes.md").is_file())
+
+    def test_build_does_not_modify_an_active_output(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            output = root / "output"
+            output.mkdir()
+            payload_path = root / "payload.json"
+            profile = load_profile(ROOT / "profiles" / "john-doe")
+            payload_path.write_text(
+                json.dumps(from_legacy_payload(payload_from_cv(profile["cv"]))),
+                encoding="utf8",
+            )
+            expected = {
+                "tailored-resume.json": "existing tailored data",
+                "tailoring-payload.json": "existing payload",
+                "effective-policy.json": "existing policy",
+                "tailoring-notes.md": "existing notes",
+            }
+            for filename, content in expected.items():
+                (output / filename).write_text(content, encoding="utf8")
+
+            with OutputLock(output):
+                with self.assertRaisesRegex(RuntimeError, "Another resume generation"):
+                    command_build(
+                        argparse.Namespace(
+                            profile=ROOT / "profiles" / "john-doe",
+                            payload=payload_path,
+                            out=output,
+                            renderer="local",
+                        )
+                    )
+
+            self.assertEqual(
+                {filename: (output / filename).read_text(encoding="utf8") for filename in expected},
+                expected,
+            )
+
+    def test_failed_build_preserves_existing_output_inputs(self):
+        with tempfile.TemporaryDirectory() as name:
+            root = Path(name)
+            output = root / "output"
+            output.mkdir()
+            payload_path = root / "payload.json"
+            profile = load_profile(ROOT / "profiles" / "john-doe")
+            payload_path.write_text(
+                json.dumps(from_legacy_payload(payload_from_cv(profile["cv"]))),
+                encoding="utf8",
+            )
+            expected = {
+                "tailored-resume.json": "existing tailored data",
+                "tailoring-payload.json": "existing payload",
+                "effective-policy.json": "existing policy",
+                "tailoring-notes.md": "existing notes",
+            }
+            for filename, content in expected.items():
+                (output / filename).write_text(content, encoding="utf8")
+
+            with patch("generate_resume.generate", side_effect=RuntimeError("render failure")):
+                with self.assertRaisesRegex(RuntimeError, "render failure"):
+                    command_build(
+                        argparse.Namespace(
+                            profile=ROOT / "profiles" / "john-doe",
+                            payload=payload_path,
+                            out=output,
+                            renderer="local",
+                        )
+                    )
+
+            self.assertEqual(
+                {filename: (output / filename).read_text(encoding="utf8") for filename in expected},
+                expected,
+            )
+
+    def test_docker_user_args_are_omitted_when_uid_mapping_is_unavailable(self):
+        with patch("jobs_tailor_cli.os.getuid", None), patch("jobs_tailor_cli.os.getgid", None):
+            self.assertEqual(_docker_user_args(), [])
 
     def test_copy_quality_lints_unsourced_soft_claims_but_allows_cve_plural(self):
         cv = load_profile(ROOT / "profiles" / "john-doe")["cv"]

@@ -1,7 +1,10 @@
 __pycache__/
 *.py[cod]
 .venv/
+.agent-venv/
+.uv-cache/
 *.egg-info/
+build/
 
 output/
 

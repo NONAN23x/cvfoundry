@@ -17,4 +17,7 @@ COPY . /workspace
 RUN chmod +x /workspace/jobs-tailor \
     && uv sync --frozen
 
+ARG CVFOUNDRY_SOURCE_SHA256=unknown
+LABEL org.opencontainers.image.revision="${CVFOUNDRY_SOURCE_SHA256}"
+
 ENTRYPOINT ["/tmp/cvfoundry-venv/bin/jobs-tailor"]

@@ -24,7 +24,7 @@ class InstallOutputRunnerTests(unittest.TestCase):
             self.assertTrue(mode & stat.S_IXUSR)
             content = runner.read_text(encoding="utf8")
             self.assertIn('"rerun"', content)
-            self.assertIn("jobs_tailor_cli.py", content)
+            self.assertIn('"cvfoundry.cli"', content)
 
 
 if __name__ == "__main__":

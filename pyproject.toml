@@ -13,8 +13,20 @@ requires-python = ">=3.11"
 [project.scripts]
 jobs-tailor = "cvfoundry.cli:main"
 
+[tool.setuptools]
+include-package-data = true
+
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "."]
+include = ["cvfoundry*", "scripts"]
+
+[tool.setuptools.data-files]
+"cvfoundry/config" = ["config/email-policy.json", "config/resume-policy.json"]
+"cvfoundry/templates/profile" = ["templates/profile/CV.md", "templates/profile/Writing-Style.md", "templates/profile/resume.toml"]
+"cvfoundry/themes" = ["themes/classic-serif.json"]
+"cvfoundry/assets/fonts" = ["assets/fonts/OFL.txt", "assets/fonts/gelasio-bold-italic.ttf", "assets/fonts/gelasio-bold.ttf", "assets/fonts/gelasio-italic.ttf", "assets/fonts/gelasio-regular.ttf"]
+"cvfoundry/profiles/john-doe" = ["profiles/john-doe/CV.md", "profiles/john-doe/Writing-Style.md", "profiles/john-doe/resume.toml"]
+"cvfoundry/profiles/example-software-engineer" = ["profiles/example-software-engineer/CV.md", "profiles/example-software-engineer/Writing-Style.md", "profiles/example-software-engineer/resume.toml"]
 
 [tool.uv]
 package = true

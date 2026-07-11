@@ -53,6 +53,17 @@ docker run --rm -v "$PWD:/workspace" cvfoundry doctor
 The tracked default rules live in [`templates/profile/resume.toml`](templates/profile/resume.toml).
 Detailed setup and rule examples are in [`docs/ONBOARDING.md`](docs/ONBOARDING.md).
 
+## Install from a wheel
+
+The wheel includes the CLI, public examples, templates, themes, policies, and bundled
+fonts needed outside a source checkout.
+
+```bash
+uv build --wheel --out-dir dist
+uv tool install dist/*.whl
+jobs-tailor init profiles/local
+```
+
 ## License
 
 CvFoundry uses the MIT License. Bundled Gelasio fonts use the SIL Open Font License 1.1.

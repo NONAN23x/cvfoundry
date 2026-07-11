@@ -1,5 +1,8 @@
 .git
 .venv
+.agent-venv
+.uv-cache
+build
 output
 knowledge-base
 profiles/local

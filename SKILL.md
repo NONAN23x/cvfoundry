@@ -31,7 +31,7 @@ Never copy personal facts from another file. Stable IDs and project metadata are
 - Tailor through selection, ordering, compact rewrites, and truthful terminology alignment.
 - Keep the final headline to exactly one prominent role title.
 - Experience order is deterministic and follows canonical CV chronology.
-- Final acceptance comes from PDF inspection, not prose length or HTML appearance.
+- Final acceptance for normal agent runs comes from `jobs-tailor check --reinspect` and generated validation artifacts. Do not open Chrome, Browser Connector, Computer Use, screenshots, rendered PNGs, or any other manual visual audit unless the user explicitly asks for visual/layout inspection.
 
 ## Workflow
 
@@ -49,7 +49,7 @@ uv run jobs-tailor build --renderer auto --profile <profile-dir> --payload <outp
 uv run jobs-tailor check --profile <profile-dir> --out <output-dir> --reinspect
 ```
 
-Revise only the payload and rerun until QA passes. Use `uv run jobs-tailor status --out <output-dir>` or `uv run jobs-tailor inspect-run --out <output-dir>` to understand current state.
+Revise only the payload and rerun until QA passes. Use `uv run jobs-tailor status --out <output-dir>` or `uv run jobs-tailor inspect-run --out <output-dir>` to understand current state. Do not add a separate agent visual-audit step unless the user asks for one.
 
 Use lowercase kebab-case folders:
 `output/<company>-<role>-YYYY-MM-DD/`

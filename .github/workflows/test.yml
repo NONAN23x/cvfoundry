@@ -14,3 +14,7 @@ jobs:
       - uses: actions/checkout@v5
       - run: docker build -t cvfoundry:test .
       - run: docker run --rm --entrypoint uv -e RUN_LIBREOFFICE_INTEGRATION=1 cvfoundry:test run python -m unittest discover -s tests -v
+      - run: >-
+          docker run --rm --entrypoint sh cvfoundry:test -c
+          'UV_CACHE_DIR=/tmp/uv-cache UV_TOOL_DIR=/tmp/uv-tools uv build --wheel --out-dir /tmp/dist
+          && UV_CACHE_DIR=/tmp/uv-cache UV_TOOL_DIR=/tmp/uv-tools uv tool run --from /tmp/dist/*.whl jobs-tailor init /tmp/profile'

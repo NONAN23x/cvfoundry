@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import Any
 
 from cv_source import load_cv
+from runtime_paths import ROOT
 
 
-ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROFILE = ROOT / "profiles" / "local"
 DEFAULT_THEME_DIR = ROOT / "themes"
 RESUME_CONFIG_FILENAME = "resume.toml"

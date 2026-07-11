@@ -37,9 +37,9 @@ from artifact_names import final_pdf_filename
 from cv_source import load_cv
 from pdf_inspection import inspect_pdf, write_report
 from resume_validation import validate_tailored_resume
+from runtime_paths import ROOT
 
 
-ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / "config" / "resume-policy.json"
 DEFAULT_CV_PATH = ROOT / "profiles" / "john-doe" / "CV.md"
 FONT_DIR = ROOT / "assets" / "fonts"

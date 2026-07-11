@@ -30,7 +30,9 @@ A run succeeds only when `jobs-tailor check --profile <profile> --out <run> --re
 returns `ok: true`. The final PDF must meet the configured one- or two-page cap, page
 geometry, font, line limits, links, and whitespace bounds; it must also retain semantic
 reading order, embedded fonts, PDF/UA tags, Writer/LibreOffice metadata, provenance, and
-current source hashes. `effective-policy.json` is the inspectable record of resolved
-section, entry, and per-source bullet counts.
+current source hashes. Normal agent runs do not perform an additional browser, screenshot,
+rendered-image, or manual visual audit unless the user explicitly requests visual/layout
+inspection. `effective-policy.json` is the inspectable record of resolved section, entry,
+and per-source bullet counts.
 
 `payload-skeleton.json` is a drafting aid, not an accepted input. `tailoring-payload.json` is the only agent-authored resume input. `tailored-resume.json` and all rendered files are deterministic derivatives. Edit the payload, then run `uv run jobs-tailor rerun --out <output-dir>` or execute the generated `rerun.py`; do not hand-edit assembled JSON, HTML, ODT, or PDF as alternate sources.

@@ -4,9 +4,6 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-
-
-ROOT = Path(__file__).resolve().parents[1]
 RUNNER_NAME = "rerun.py"
 
 
@@ -20,13 +17,12 @@ from pathlib import Path
 
 
 OUTPUT_DIR = Path(__file__).resolve().parent
-ROOT = OUTPUT_DIR.parents[1]
-
 raise SystemExit(
     subprocess.call(
         [
             sys.executable,
-            str(ROOT / "scripts" / "jobs_tailor_cli.py"),
+            "-m",
+            "cvfoundry.cli",
             "rerun",
             "--out",
             str(OUTPUT_DIR),

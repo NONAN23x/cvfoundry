@@ -7,9 +7,9 @@ import shutil
 from pathlib import Path
 
 from check_resume_quality import analyze_output_dir
+from runtime_paths import ROOT
 
 
-ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "output"
 QUARANTINE = OUTPUT / "_quarantine"
 

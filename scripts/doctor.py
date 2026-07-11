@@ -11,9 +11,7 @@ import tempfile
 from pathlib import Path
 
 from profile_config import DEFAULT_PROFILE, ProfileConfigError, load_profile, resolve_effective_policy
-
-
-ROOT = Path(__file__).resolve().parents[1]
+from runtime_paths import ROOT
 
 
 def command_version(command: str, *arguments: str) -> tuple[bool, str]:

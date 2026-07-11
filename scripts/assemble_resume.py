@@ -12,9 +12,9 @@ from typing import Any
 
 from cv_source import load_cv
 from resume_validation import validate_tailored_resume
+from runtime_paths import ROOT
 
 
-ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / "config" / "resume-policy.json"
 DEFAULT_CV_PATH = ROOT / "profiles" / "john-doe" / "CV.md"
 ALLOWED_PAYLOAD_FIELDS = {
