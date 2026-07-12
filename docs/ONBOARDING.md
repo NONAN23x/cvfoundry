@@ -1,22 +1,33 @@
-# CvFoundry onboarding
+# Onboarding
 
-## 1. Create a private profile
+Start by cloning CvFoundry, opening the folder in your preferred coding agent, and giving it this prompt:
+
+> Read `AGENTS.md`, onboard this repository, and run the first-run requirements for my private profile. Stop if anything needs my input.
+
+That is the recommended path. The agent reads the project contract, runs the first-run checks, and tells you precisely what is missing. Your profile lives in `profiles/local/`, which is ignored by Git and Docker.
+
+If you are working manually, run:
 
 ```bash
 uv sync
 uv run jobs-tailor init profiles/local
+uv run jobs-tailor first-run
 ```
 
-`profiles/local/` is ignored by Git and the Docker build context. It contains:
+## Create your private CV
+
+`profiles/local/` contains:
 
 - `CV.md`: your only factual source.
-- `resume.toml`: human-editable tailoring rules.
+- `resume.toml`: human-editable resume rules.
 - `Writing-Style.md`: voice preferences only.
 
 Use `profiles/john-doe/CV.md` as the format reference, then write your own facts in
-`profiles/local/CV.md`.
+`profiles/local/CV.md`. Do not put personal details in a tracked example profile.
 
-## 2. Configure resume rules
+## Configure resume rules
+
+Only do this when the scaffold defaults do not match the resume you want. The rules that control content and length are in `profiles/local/resume.toml`; visual choices such as fonts, colors, and spacing live in the referenced theme.
 
 The scaffolded profile starts from `templates/profile/resume.toml`.
 
@@ -62,7 +73,7 @@ max_pages = 2
 
 CvFoundry clamps counts to available CV content and never invents filler.
 
-## 3. Validate and inspect
+## Validate and inspect
 
 ```bash
 uv run jobs-tailor doctor
@@ -73,7 +84,7 @@ uv run jobs-tailor explain-rules
 
 Fix reported profile, font, runtime, or policy errors before building.
 
-## 4. Prepare and build
+## Prepare and build
 
 ```bash
 uv run jobs-tailor prepare --job job-description.md --out output/run
@@ -85,7 +96,7 @@ uv run jobs-tailor check --out output/run --reinspect
 and eligible source IDs plus `payload-skeleton.json`. An agent or person writes the small tailoring payload; CvFoundry
 then injects locked facts, renders outputs, and validates provenance and layout.
 
-## 5. Inspect or rerun
+## Inspect or rerun
 
 ```bash
 uv run jobs-tailor status --out output/run
@@ -99,7 +110,7 @@ Generated evidence:
 - `decision-report.json`: selections, page use, spacing, whitespace, and suggestions.
 - `layout-validation.json`: PDF geometry, fonts, links, accessibility, and overflow checks.
 
-## 6. Renderer environments
+## Renderer environments
 
 Most commands are native cross-platform Python. LibreOffice rendering is environment-sensitive.
 Use the Docker image when native LibreOffice/UNO is missing, especially on Windows.

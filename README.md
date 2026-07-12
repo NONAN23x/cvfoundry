@@ -1,62 +1,66 @@
 # CvFoundry
 
-CvFoundry automates resume tailoring without turning your CV into mush.
-You keep one factual `CV.md`; CvFoundry selects source-backed content for a job,
-renders HTML/ODT/PDF, and writes evidence files showing what rules were applied.
+[![Tests](https://github.com/NONAN23x/cvfoundry/actions/workflows/test.yml/badge.svg)](https://github.com/NONAN23x/cvfoundry/actions/workflows/test.yml)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![uv](https://img.shields.io/badge/uv-managed-DE5FE9?logo=uv&logoColor=white)](https://docs.astral.sh/uv/)
+[![Docker renderer](https://img.shields.io/badge/Docker-renderer-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Quick start
+Works with your preferred coding agent:
+[![Claude Code](https://img.shields.io/badge/Claude_Code-191919?logo=anthropic&logoColor=white)](https://docs.anthropic.com/en/docs/claude-code/overview)
+[![Codex](https://img.shields.io/badge/Codex-412991?logo=openai&logoColor=white)](https://openai.com/codex/)
+[![OpenCode](https://img.shields.io/badge/OpenCode-000000?logo=opencode&logoColor=white)](https://opencode.ai/)
+[![Antigravity](https://img.shields.io/badge/Antigravity-4285F4?logo=google&logoColor=white)](https://antigravity.google/)
+[![Cursor](https://img.shields.io/badge/Cursor-000000?logo=cursor&logoColor=white)](https://www.cursor.com/)
 
-```bash
-uv sync
-uv run jobs-tailor init profiles/local
-uv run jobs-tailor first-run
-```
+CvFoundry turns one factual CV into a tailored, source-backed resume. It keeps your private profile out of Git, lets your coding agent do the editorial work within explicit rules, and produces HTML, ODT, PDF, and QA evidence.
 
-Then edit your private profile:
+## Start with your agent
 
-1. Write `profiles/local/CV.md` using [`profiles/john-doe/CV.md`](profiles/john-doe/CV.md) as the example format.
-2. Edit `profiles/local/resume.toml` to choose the profile rules for pages, sections, entries, and bullets.
-3. Optionally adjust `profiles/local/Writing-Style.md`.
-
-Private profiles and generated outputs are ignored by Git. The published example profile is fictional.
-
-## Tailor a resume
+Clone the repository, open it in your favorite coding agent, and ask the agent to onboard the project and complete first-run checks.
 
 ```bash
-uv run jobs-tailor first-run
-uv run jobs-tailor doctor
-uv run jobs-tailor validate
-uv run jobs-tailor prepare --job job-description.md --out output/run
-# Create output/run/tailoring-payload.json from the brief and payload skeleton.
-uv run jobs-tailor build --renderer auto --payload output/run/tailoring-payload.json --out output/run
-uv run jobs-tailor check --out output/run --reinspect
+git clone https://github.com/NONAN23x/cvfoundry.git
+cd cvfoundry
 ```
 
-Helpful inspection commands:
+Give your agent this prompt:
+
+> Read `AGENTS.md`, onboard this repository, and run the first-run requirements for my private profile. Stop if anything needs my input.
+
+The agent will install the locked dependencies with `uv`, create `profiles/local/` if needed, verify your renderer, and stop before tailoring if your profile is incomplete. Your private CV, rules, and generated resumes stay ignored by Git.
+
+If you are working without an agent, follow the same steps in [onboarding](docs/ONBOARDING.md).
+
+## Create your profile
+
+After the agent has completed first run, put your facts in `profiles/local/CV.md`. Use the fictional [John Doe example](profiles/john-doe/CV.md) for structure; do not edit the public example for your own resume.
+
+Then set the resume boundaries you want in `profiles/local/resume.toml`: page count, included sections, and entry/bullet limits. `Writing-Style.md` is optional and controls voice only.
+
+## Tailor a job
+
+Save the job description, then tell your agent to tailor it. For a manual run:
 
 ```bash
-uv run jobs-tailor explain-rules
-uv run jobs-tailor status --out output/run
-uv run jobs-tailor inspect-run --out output/run
-uv run jobs-tailor rerun --out output/run
+uv run jobs-tailor prepare --job job-description.md --out output/company-role-YYYY-MM-DD
+# Write output/company-role-YYYY-MM-DD/tailoring-payload.json from the generated brief.
+uv run jobs-tailor build --renderer auto --payload output/company-role-YYYY-MM-DD/tailoring-payload.json --out output/company-role-YYYY-MM-DD
+uv run jobs-tailor check --out output/company-role-YYYY-MM-DD --reinspect
 ```
 
-## Rendering
+The final folder contains the tailored HTML, editable ODT, tagged PDF, selected-source evidence, and layout QA. See [the tailoring guide](SKILL.md) when you need to author or review a payload.
 
-Most commands are normal cross-platform Python. LibreOffice/PDF rendering is the non-negotiable environment-sensitive part; use Docker when native LibreOffice/UNO is not healthy, especially on Windows.
+## When you need more control
 
-```bash
-docker build -t cvfoundry .
-docker run --rm -v "$PWD:/workspace" cvfoundry doctor
-```
-
-The tracked default rules live in [`templates/profile/resume.toml`](templates/profile/resume.toml).
-Detailed setup and rule examples are in [`docs/ONBOARDING.md`](docs/ONBOARDING.md).
+- Need to change page limits, sections, entry counts, or bullet counts? Read [resume rules](docs/ONBOARDING.md#configure-resume-rules).
+- Need a two-page resume? Change `target_pages` and `max_pages` in your private `resume.toml`; counts automatically use the two-page values and never invent filler.
+- Need Docker because LibreOffice/UNO is unavailable? Read [renderer environments](docs/ONBOARDING.md#renderer-environments).
+- Need to see the actual rules used for one run? Run `uv run jobs-tailor explain-rules` or inspect the run's `effective-policy.json`.
 
 ## Install from a wheel
 
-The wheel includes the CLI, public examples, templates, themes, policies, and bundled
-fonts needed outside a source checkout.
+For use outside a source checkout:
 
 ```bash
 uv build --wheel --out-dir dist
